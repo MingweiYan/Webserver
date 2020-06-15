@@ -21,15 +21,15 @@ private:
     // 数据库参数
     std::string host;
     int port;
-    std::string dbname;
+    std::string dbusername;
     std::string dbpasswd;
     std::string dbname; 
 public:
     static mysqlpoll* getInstance();
     MYSQL* get_connection();
     void release_connection(MYSQL*);
-    bool init(std::string host,std::string dbname,std::string dbpasswd,std::string port,std::string dbname, int connection_num);
-    bool destory();
+    void init(std::string host,std::string dbusername,std::string dbpasswd,int port,std::string dbname, int connection_num);
+    void destory();
 };
     
 /*
