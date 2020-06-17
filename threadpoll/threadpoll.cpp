@@ -56,6 +56,11 @@ void threadpoll<T>::thread_run_func(){
         }
     }
 }
+// 设置模板类元素的工作函数
+template<typename T>
+void threadpoll<T>::set_work_fun(std::function<void (T*)> func){
+    work_func = func;
+}
 // 将一项任务放入工作列表
 template<typename T>
 bool threadpoll<T>::put(T* work){

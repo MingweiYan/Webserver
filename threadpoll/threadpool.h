@@ -29,6 +29,7 @@ private:
     static void* thread_init_func(void * arg);
 public:
     void thread_run_func();
+    void set_work_fun(std::function<void (T*)> func);
     threadpoll(std::function<void (T*)> func,int thread_poll_size,int work_list_size);
     ~threadpoll();
     bool get(T* work);
