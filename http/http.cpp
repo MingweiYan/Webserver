@@ -3,6 +3,44 @@
 #include <unistd.h>
 #include"../http/http.h"
 
+
+//初始化函数
+void http::init(int sockfd,char*root,int TriggerMode,std::string dbusername,std::string dbpasswd,std::string dbname){
+    sockfd = sockfd;
+    epoll_trigger_model = TriggerMode;
+    tool.epoll_add(epoll_fd,sockfd,true,true,epoll_trigger_model == ET);
+    workdir = root;
+    init();
+}
+void http::init(){
+    memset(read_buf,'\0',read_buf_size);
+    memset(write_buf,'\0',write_buf_size);
+    memset(native_request_url,'\0',file_name_len);
+
+    cur_wr_idx = 0;
+    cur_rd_idx = 0;
+    cur_parse_idx = 0;
+    cur_parseline_head = 0;
+    content_len = 0;
+    bytes_to_send = 0;
+    bytes_have_send = 0;
+
+    master_state = CHECK_REQUESTLINE;
+    request = NO_REQUEST;
+    method  = GET;
+    line_state = LINE_OPEN;
+    KeepAlive = false;
+
+    request_url = NULL;
+    post_line = NULL;
+    mmap_addr = NULL;
+    m_iv_cnt = 0;
+}
+// 关闭连接
+void http::close_connection(){
+    tool.epoll_remove(epoll_fd,sock_fd);
+    sockfd = -1;
+}
 // http的工作函数
 void http_work_fun(http* http_conn){
     if(!http_conn->isProactor()){
@@ -11,8 +49,21 @@ void http_work_fun(http* http_conn){
         }
     }
 }
+void http::process(){
+    REQUEST_STATE state = process_read();
+    if(state == NO_REQUEST){
+        tool.epoll_mod(epoll_fd,sockfd,EPOLL_IN,true,epoll_trigger_model ==ET );
+        return ;
+    }
+    bool ret = process_write(state);
+    if(!ret){
+        close_connection()
+    }
+    tool.epoll_mod(epoll_fd,sockfd,EPOLL_OUT,true,epoll_trigger_model ==ET );
+}
 // 从socket读取信息到读缓存  根据ET和LT选择不同的读取方式
 bool http::read_once(){
+    // 已满 直接返回
     if(cur_rd_idx>read_buf_size){
         return false;
     }
@@ -54,15 +105,17 @@ void http::getLoginformation(){
     //返回所有字段结构的数组
     MYSQL_FIELD *fields = mysql_fetch_fields(result);
     //从结果集中获取下一行，将对应的用户名和密码，存入map中
+    m_lock.lock();
     while (MYSQL_ROW row = mysql_fetch_row(result)){
         std::string temp1(row[0]);
         std::string temp2(row[1]);
         users[temp1] = temp2;
     }
+    m_lock.unlock();
 }
 // 获取新读入数据指针
 char* http::get_line(){
-    return read_buf + cur_parse_idx;
+    return read_buf + cur_parseline_head;
 }
 // 解析一行
 LINE_STATE http::parse_line(){
@@ -79,12 +132,12 @@ LINE_STATE http::parse_line(){
     }
     return LINE_OPEN;
 }
-// 解析请求行
+// 解析请求行 并将url 放入 request_url
 REQUEST_STATE  http::parse_requestline(char* line){
     char * idx = NULL;
     // 第一个\t出现的位置 
     idx = strpbrk(line, " \t");
-    if(pos == NULL){
+    if(idx == NULL){
         return BAD_REQUEST;
     }
     *idx = '\0';
@@ -127,14 +180,14 @@ REQUEST_STATE  http::parse_requestline(char* line){
 
     if(!request_url || request_url[0] != '/')
         return BAD_REQUEST;
-
+    // url 为  / 显示判断界面
     if (strlen(request_url) == 1)
         strcat(request_url, "judge.html");
     master_state = CHECK_HEADER; 
 
     return NO_REQUEST;
 }
-// 解析头部信息
+// 解析一行头部信息
 REQUEST_STATE http::parse_header(char* line){
     if(line[0] == '\0'){
         if(content_len != 0){
@@ -165,7 +218,7 @@ REQUEST_STATE http::parse_header(char* line){
     }
     return NO_REQUEST;
 }
-// 处理POST请求内容
+// 处理POST请求内容 放入post_line 中
 REQUEST_STATE http::parse_content(char* line){
     if(cur_rd_idx >= (cur_parse_idx+content_len) ){
         line[content_len] = '\0';
@@ -176,8 +229,9 @@ REQUEST_STATE http::parse_content(char* line){
 }
 // 读取报文并得到请求
 void http::process_read(){
-    while( (master_state == CHECK_CONTENT && line_state == LINE_OK) || line_state = parse_line() ){
+    while( (master_state == CHECK_CONTENT && line_state == LINE_OK) || （ line_state = parse_line() ) == LINE_OK ){
         char* line = get_line();
+        cur_parseline_head = cur_parse_idx;
         LOG_INFO("%s", line);
         switch (master_state)
         {
@@ -214,21 +268,21 @@ void http::process_read(){
 // 根据得到的请求内容处理 登录注册 发送文件等
 REQUEST_STATE http::do_request(){
     strcpy(native_request_url,workdir);
-    int len = strlen(doc_root);
+    int len = strlen(workdir);
     printf("m_url:%s\n", request_url);
     const char* p = strrchr(request_url,'/');
     //注册页面
     if(*(p+1) == '0'){
         char* tail_url = (char*) malloc(sizeof(char)*200);
         strcpy(tail_url,"/register.html");
-        strncpy(native_request_url,tail_url,strlen(tail_url));
+        strncpy(native_request_url+len,tail_url,strlen(tail_url));
         free(tail_url);
     }
     // 登录页面
     else if(*(p+1) == '1'){
         char* tail_url = (char*) malloc(sizeof(char)*200);
         strcpy(tail_url,= "/log.html";
-        strncpy(native_request_url,tail_url,strlen(tail_url));
+        strncpy(native_request_url+len,tail_url,strlen(tail_url));
         free(tail_url);
     }
     // 登录
@@ -264,7 +318,7 @@ REQUEST_STATE http::do_request(){
         // 这里为什么要加2
         strcat(tail_url,request_url+2);
         //这里修改了
-        strncpy(native_request_url,tail_url,strlen(tail_url));
+        strncpy(native_request_url+len,tail_url,strlen(tail_url));
         free(tail_url);
 
         std::string name; std::string password;
@@ -284,6 +338,9 @@ REQUEST_STATE http::do_request(){
         sql_insert += password;
         sql_insert += " ') ";
 
+        mysqlconnection instance;
+        MYSQL* mysqlconn = instance.get_mysql() ;
+
         if(!users.count(name)){
             m_lock.lock();
             int res = mysql_query(mysqlconn,sql_insert);
@@ -302,27 +359,26 @@ REQUEST_STATE http::do_request(){
     else if(*(p+1) == '5'){
         char* tail_url = (char*) malloc(sizeof(char)*200);
         strcpy(tail_url,= "/picture.html";
-        strncpy(native_request_url,tail_url,strlen(tail_url));
+        strncpy(native_request_url+len,tail_url,strlen(tail_url));
         free(tail_url);
     }
     // 请求视频
     else if(*(p+1) == '6'){
         char* tail_url = (char*) malloc(sizeof(char)*200);
         strcpy(tail_url,= "/video.html";
-        strncpy(native_request_url,tail_url,strlen(tail_url));
+        strncpy(native_request_url+len,tail_url,strlen(tail_url));
         free(tail_url);
     }
-    // 请求视频
+    // 请求关注页面
     else if(*(p+1) == '7'){
         char* tail_url = (char*) malloc(sizeof(char)*200);
         strcpy(tail_url,= "/fans.html";
-        strncpy(native_request_url,tail_url,strlen(tail_url));
+        strncpy(native_request_url+len,tail_url,strlen(tail_url));
         free(tail_url);
     }
-    // 其他情况
-    else{
+    // 其他情况  只有/  起始界面 和注册登录完成的界面
         strncpy(native_request_url + len, request_url, strlen(request_url));
-    }
+
     int ret = stat(native_request_url,&file_stat);
     if(ret<0){
         return NO_RESOURCE;
@@ -364,7 +420,7 @@ bool http::add_line(const char* format, ...){
     }
     cur_wr_idx += len;
     va_end(va);
-    LOG_INFO("request:%s", write_buf);
+   // LOG_INFO("request:%s", write_buf);
     return true;
 }
 //写状态行
@@ -394,6 +450,97 @@ bool http::add_keepalive(){
 // 写内容
 bool http::add_content(const char* content){
      return add_line("%s", content);
+}
+// 处理写
+bool http::process_write(REQUEST_STATE state){
+    switch (state)
+    {
+    case INTERNAL_ERROR:
+        add_statusline(500,error_500_title);
+        add_header(strlen(error_500_form));
+        bool ret = add_content(error_500_form);
+        if(!ret) return false;
+        break;
+    case BAD_REQUEST:
+        add_statusline(404,error_404_title);
+        add_header(strlen(error_404_form));
+        bool ret = add_content(error_404_form);
+        if(!ret) return false;
+        break;
+    case FORBIDDEN_REUQEST:
+        add_statusline(403,error_403_title);
+        add_header(strlen(error_403_form));
+        bool ret = add_content(error_403_form);
+        if(!ret) return false;
+        break;
+    case FILE_REQUEST:
+        add_statusline(200,ok_200_title);
+        if(file_stat.st_size>0){
+            add_header(file_stat.st_size);
+            m_iv[0].iov_base = write_buf;
+            m_iv[0].iov_len = cur_wr_idx;
+            m_iv[1].iov_base = mmap_addr;
+            m_iv[1].iov_len = file_stat.st_size;
+            m_iv_cnt = 2;
+            bytes_to_send = cur_wr_idx + file_stat.st_size;
+            return true;
+        } 
+        else {
+            const char *ok_string = "<html><body></body></html>";
+            add_header(strlen(ok_string));
+            bool ret = add_content(ok_string);
+            if(!ret) return false;
+        }
+        break;
+    default:
+        return false;
+        break;
+    }
+    m_iv[0].iov_base = write_buf;
+    m_iv[0].iov_len = cur_wr_idx;
+    bytes_to_send = cur_wr_idx;
+    m_iv_cnt = 1;
+    return true;
+}
+// 写函数
+bool http::write_to_socket(){
+    if(bytes_to_send == 0){
+        tool.epoll_mod(epoll_fd, sockfd,EPOLL_IN,true,epoll_trigger_model ==ET);
+        init();
+        return true;
+    }
+    while(1){
+        int bytes = write_v(sockfd,m_iv,m_iv_cnt);
+        if(bytes<0){
+            if(errno == EAGAIN){
+                tool.epoll_mod(epoll_fd, sockfd,EPOLL_OUT,true,epoll_trigger_model ==ET);
+                return true;
+            }
+            unmmap();
+            return false;
+        }
+        // 单次写完 更新结构体
+        bytes_have_send += bytes;
+        bytes_to_send -= bytes;
+        if(bytes_have_send >= m_iv[0].iov_len){
+            m_iv[0].iov_len = 0;
+            m_iv[1].iov_base = mmap_addr + (bytes_have_send - cur_wr_idx);
+            m_iv[1].iov_len = bytes_to_send;
+        } else {
+            m_iv[0].iov_base = write_buf + bytes_have_send;
+            m_iv[0].iov_len = m_iv[0].iov_len - bytes_have_send;
+        }
+        // 发送完毕
+        if(bytes_to_send<=0){
+            unmmap();
+            tool.epoll_mod(epoll_fd, sockfd,EPOLL_IN,true,epoll_trigger_model ==ET);
+            if(KeepAlive){
+                init();
+                return true;
+            }
+            return false;
+        }
+    }
 }
 // 判断是否是proactor
 bool http::isProactor(){

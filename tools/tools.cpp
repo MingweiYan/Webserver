@@ -16,17 +16,16 @@ void tools::setnonblocking(int fd){
 void tools::epoll_add(int epollfd, int fd,bool read,bool one_shot,bool ET){
     epoll_event event;
     event.data.fd = fd;
-    auto tmp = event.events;
     if(read){
-        tmp  = EPOLLIN | EPOLLRDHUP;
+        event.events  = EPOLLIN | EPOLLRDHUP;
     } else {
-        tmp = EPOLLOUT ;
+        event.events = EPOLLOUT ;
     }
     if(one_shot){
-        tmp |= EPOLLONESHOT;
+        event.events |= EPOLLONESHOT;
     }
     if(ET){
-        tmp |= EPOLLET; 
+        event.events |= EPOLLET; 
     } 
     epoll_ctl(epollfd,EPOLL_CTL_ADD,fd,&event);   
 }
@@ -34,6 +33,19 @@ void tools::epoll_add(int epollfd, int fd,bool read,bool one_shot,bool ET){
 void tools::epoll_remove(int epollfd,int fd){
     epoll_ctl(epoll_fd,EPOLL_CTL_DEL,fd,0);
     close(fd);
+}
+// 在epoll中修改fd
+void tools::epoll_mod(int epoolfd,int fd,int ev,bool one_shot,bool ET){
+    epoll_event event;
+    event.data.fd = fd;
+    event.events |= ev;
+    if(one_shot){
+        event.events |= EPOLLONESHOT;
+    }
+    if(ET){
+        event.events |= EPOLLET; 
+    } 
+    epoll_ctl(epollfd,EPOLL_CTL_MOD,fd,&event); 
 }
 // 信号处理函数
 void tools::sig_handler(int sig, int pipefd){

@@ -3,8 +3,10 @@
 
 #include<stdarg.h>
 #include<unordered_map>
+#include <sys/uio.h>
 #include"../info/info.h"
 #include"../mysqlpoll/mysqlpoll.h"
+#include"../tools/tools.h"
 
 // http 请求方法
 enum HTTP_METHOD {
@@ -58,6 +60,7 @@ cosnt int proactor = 1;
 const int ET = 0;
 const int LT = 1;
 
+static cosnt int file_name_len = 256;
 
 class http{
 
@@ -66,12 +69,15 @@ private:
     char* read_buf;
     int cur_rd_idx;
     int cur_parse_idx;
+    int cur_parseline_head;
     int read_buf_size;
     int content_len;
     // 写相关
     char* write_buf;
     int cur_wr_idx;
     int write_buf_size;
+    int bytes_to_send;
+    int bytes_have_send;
     // 状态
     CHECK_STATE master_state;
     REQUEST_STATE  request;
@@ -85,22 +91,28 @@ private:
     bool KeepAlive;
     char* post_line;
     char* native_request_url;
-    MYSQL* mysqlconn;
     locker m_lock;
     static char* workdir;
     char*  mmap_addr;
     struct stat file_stat;
+    struct iovec m_iv[2];
+    int m_iv_cnt ;
     static std::unordered_map<string,string> users;
+    static tools  tool;
+    static int epoll_fd;
 public:
+    //初始化
+    void init(int sockfd,char*root,int TriggerMode,std::string dbusername,std::string dbpasswd,std::string dbname);
+    void init();
     // 功能性函数
-    void work();
+    void process();
     void close_connection();
     void getLoginformation();
     bool isProactor();
     void do_request();
     void unmmap();
     // 读取报文 并进行处理
-    void read_once();
+    bool read_once();
     void process_read();
     char* get_line();
     LINE_STATE parse_line();
@@ -108,6 +120,7 @@ public:
     REQUEST_STATE parse_header(char* line);
     void parse_content();
     // 根据报文请求写文件
+    bool write_to_socket();
     bool process_write();
     bool add_line(const char* format, ...);
     bool add_statusline(int status,const char*);
