@@ -100,9 +100,10 @@ private:
     static std::unordered_map<string,string> users;
     static tools  tool;
     static int epoll_fd;
+    static int cur_user_cnt;
 public:
     //初始化
-    void init(int sockfd,char*root,int TriggerMode,std::string dbusername,std::string dbpasswd,std::string dbname);
+    void init(int sockfd,char*root,int TriggerMode);
     void init();
     // 功能性函数
     void process();
@@ -131,6 +132,8 @@ public:
     bool add_keepalive();
     bool add_content(const char*);
     bool add_content_type();
+
+    static void set_epoll_fd(int fd);
 };
 
     void http_work_fun(http* http_conn);

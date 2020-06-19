@@ -25,6 +25,7 @@ private:
 public:
     timer(int slot = 15):timer_slot(15){};
     virtual ~timer();
+    void set_slot(int i) {timer_slot = i;}
     virtual void add(timer_node*) const = 0;
     virtual void remove(timer_node *) const = 0;
     virtual void adjust(timer_node*) const = 0;

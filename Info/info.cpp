@@ -31,7 +31,8 @@ info::~info(){
     }
 }
 // 初始化
-bool info::init(std::string file_name,int max_line_perfile,int buf_size,int queue_size){
+bool info::init(bool LogOpen,std::string file_name,int max_line_perfile,int buf_size,int queue_size){
+    LogOpen = LogOpen;
     max_line = max_line_perfile;
     write_buf_size = buf_size;
     if(queue_size>0){
@@ -162,11 +163,15 @@ void info::write_line(int level, const char* format, ...){
     ++cur_line;
     flush();
 }
-
+// 清空缓存
 void info::flush(){
     m_lock.lock();
     fflush(fp);
     m_lock.unlock();
+}
+// 判断是否使用log
+bool info::IsLogOpen(){
+    return LogOpen;
 }
 
 

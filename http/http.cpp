@@ -5,12 +5,15 @@
 
 
 //初始化函数
-void http::init(int sockfd,char*root,int TriggerMode,std::string dbusername,std::string dbpasswd,std::string dbname){
+void http::init(int sockfd,char*root,int TriggerMode){
     sockfd = sockfd;
     epoll_trigger_model = TriggerMode;
     tool.epoll_add(epoll_fd,sockfd,true,true,epoll_trigger_model == ET);
     workdir = root;
     init();
+    m_lock.lock();
+    ++cur_user_cnt;
+    m_lock.unlock(); 
 }
 void http::init(){
     memset(read_buf,'\0',read_buf_size);
@@ -40,6 +43,9 @@ void http::init(){
 void http::close_connection(){
     tool.epoll_remove(epoll_fd,sock_fd);
     sockfd = -1;
+    m_lock.lock();
+    --cur_user_cnt;
+    m_lock.unlock(); 
 }
 // http的工作函数
 void http_work_fun(http* http_conn){
@@ -92,6 +98,7 @@ bool http::read_once(){
 // 从Mysql中获取用户登录信息
 void http::getLoginformation(){
     //先从连接池中取一个连接
+    cur_user_cnt = 0;
     mysqlconnection mysqlcon;
     MYSQL *mysql = mysqlcon->get_mysql();
     //在user表中检索username，passwd数据，浏览器端输入
@@ -545,4 +552,8 @@ bool http::write_to_socket(){
 // 判断是否是proactor
 bool http::isProactor(){
     return actor_model == proactor;
+}
+// 设置epollfd
+void http::set_epoll_fd(int fd){
+    epoll_fd = fd;
 }

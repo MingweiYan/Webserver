@@ -47,9 +47,16 @@ void tools::epoll_mod(int epoolfd,int fd,int ev,bool one_shot,bool ET){
     } 
     epoll_ctl(epollfd,EPOLL_CTL_MOD,fd,&event); 
 }
-// 信号处理函数
-void tools::sig_handler(int sig, int pipefd){
-    int pre_erro = errno;
-    send(pipefd,(char*)sig,1,0);
-    errno = pre_erro;
+// 设置信号处理函数
+void tools::set_sigfunc(int sig,void(handler)(int), bool restrart){
+    struct sigaction sa;
+    memset(&sa,'\0',sizeof(sa));
+    sa.sahandler = handler;
+    if(restrart){
+        sa.sa_flags |= SA_RESTART;
+    }
+    sigfillset(&sa.sa_mask);
+    int ret = sigaction(sig,&sa,NULL);
+    assert(ret!=-1);
+    
 }
