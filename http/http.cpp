@@ -96,9 +96,12 @@ bool http::read_once(){
     }
 }
 // 从Mysql中获取用户登录信息
-void http::getLoginformation(){
-    //先从连接池中取一个连接
+void http::init_static(char* root){
+
     cur_user_cnt = 0;
+    workdir = root;
+
+    //先从连接池中取一个连接
     mysqlconnection mysqlcon;
     MYSQL *mysql = mysqlcon->get_mysql();
     //在user表中检索username，passwd数据，浏览器端输入

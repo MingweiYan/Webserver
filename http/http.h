@@ -92,23 +92,25 @@ private:
     char* post_line;
     char* native_request_url;
     locker m_lock;
-    static char* workdir;
     char*  mmap_addr;
     struct stat file_stat;
     struct iovec m_iv[2];
     int m_iv_cnt ;
+
+
+    static char* workdir;
     static std::unordered_map<string,string> users;
     static tools  tool;
     static int epoll_fd;
     static int cur_user_cnt;
 public:
     //初始化
-    void init(int sockfd,char*root,int TriggerMode);
+    void init(int sockfd,int TriggerMode);
     void init();
     // 功能性函数
     void process();
     void close_connection();
-    void getLoginformation();
+    static void init_static(char*);
     bool isProactor();
     void do_request();
     void unmmap();

@@ -35,16 +35,20 @@ private:
     timer*  timer_;
     int pipefd[2];
     time_t timer_slot;
+    std::unordered_map<int,timer_node*> to_timernode;
     //epoll 相关
     int epollfd;
     int listenfd;
+    epoll_event events[MAX_EVENT_NUMBER];
     //服务器
     int serverport; 
     bool  sock_linger;
     int trigueMode;
-    std::vector<http*> connections;
+    http* connections;
+    bool stop_server;
+    bool time_out;
     //线程池
-    threadpoll<http*> threadpoll_;
+    threadpoll<http*> * threadpoll_;
     int thread_size;
     // 其他
     tools tool;
@@ -64,8 +68,14 @@ public:
     // 定时器相关
     void adjust_timernode(timer_node*);
     void add_timernode(int fd);
+    void remove_timernode(timer_node*);
     // epollfd相关
     bool accpet_connection();
+    bool dealwith_signal();
+    bool dealwith_read();
+    bool dealwith_write();
+    // 主循环
+    void events_loop();
 };
 
 void sig_handler(int sig, int pipefd)

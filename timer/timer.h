@@ -19,7 +19,7 @@ class timer{
 private:
     // 定时器间隔
     int timer_slot;
-    // 超时处理函数
+    // 留出
     std::function<void(timer_node*)> func;
 
 public:
@@ -30,6 +30,7 @@ public:
     virtual void remove(timer_node *) const = 0;
     virtual void adjust(timer_node*) const = 0;
     virtual void tick() const = 0;
+    void dealwith_alarm(){ tick(); alarm(timer_slot);}
     int slot(){
         return timer_slot;
     }

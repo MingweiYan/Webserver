@@ -15,9 +15,16 @@ void http_work_func(http* conn){
         int ret = conn->read_once();
         if(ret){
             conn->process();
+        } 
+        // 读取失败 直接关闭
+        else {
+            conn->close_connection();
         }
         ret = conn->write_to_socket();
-    }
+        if(!ret){
+            conn->close_connection();
+        }
+    } 
     // proactor
     else{
         conn->process();
@@ -25,7 +32,7 @@ void http_work_func(http* conn){
 }
 // 构造函数
 webserver::webserver(){
-    //connections = new http[MAX_FD];
+    connections = new http[MAX_FD];
     connections.resize(MAX_FD);
     char server_path[256];
     getcwd(server_path,sizeof(server_path));
@@ -41,7 +48,9 @@ webserver::~webserver(){
     close(pipefd[1]);
     close(m_pipefd[0]);
     free(rootPath);
-    delete(timer_);
+    delete timer_;
+    delete threadpoll_;
+    delete connections;
 }
 // 初始化函数
 void webserver::init(std::string dbusername,std::string dbpassword,std::string dbname,bool useLog,bool logAsyn,
@@ -60,6 +69,8 @@ void webserver::init(std::string dbusername,std::string dbpassword,std::string d
     threadpoll_  = NULL;      
     serverport =   servport;
     timer_slot = 5;
+    stop_server = false;
+    time_out = false;
 }
 // 初始化线程库
 void webserver::init_threadpoll(){
@@ -135,6 +146,13 @@ void webserver::add_timernode(int fd){
     time_t cur = time(NULL);
     timer->expire = cur + 3 * TIMESLOT;
     timer_->add(timer);
+    to_timernode[fd] = timer;
+}
+// 移除定时器节点
+void webserver::remove_timernode(int fd){
+    timer_node* timer = to_timernode[fd];
+    timer_->remove(timer);
+    to_timernode.erase(fd);
 }
 
 
@@ -156,15 +174,144 @@ bool webserver::accpet_connection(){
             LOG_ERROR("%s", "Internal server busy");
             return false;
         }
-        
+        // LT + ET    
+        if(trigueMode ==1){
+            connections[connfd].init(connfd,ET);
+        }
+        else{  //  LT + LT
+            connections[connfd].init(connfd,LT);
+        }
+        add_timernode(connfd);
     }
     // ET + LT   ET + ET 
     else{
-
+        while(true){
+            int connfd = accept(listenfd,(sockaddr*)&client_addr,&client_addr_len);
+            if (connfd < 0){
+                LOG_ERROR("%s:errno is:%d", "accept error", errno);
+                break;
+            }
+            if (http_conn::m_user_count >= MAX_FD){
+                utils.show_error(connfd, "Internal server busy");
+                LOG_ERROR("%s", "Internal server busy");
+                break;
+            }
+            add_timernode(connfd);
+            //  ET + ET
+            if(trigueMode ==3){
+                connections[connfd].init(connfd,ET);
+            }
+            else{  //  ET + LT
+                connections[connfd].init(connfd,LT);
+            }
+        }
     }
     
 }
 
+// 处理信号
+bool webserver::dealwith_signal(){
+    char signals[1024];
+    int ret = recv(m_pipefd[0], signals, sizeof(signals), 0);
+    if (ret == -1){
+        return false;
+    }
+    else if (ret == 0){
+        return false;
+    }
+    else{
+        for (int i = 0; i < ret; ++i){
+            switch (signals[i]){
+            case SIGALRM:
+                time_out = true;
+                break;
+            case SIGTERM:
+                stop_server = true;
+                break;
+            }
+        }
+    }
+    return true;
+}
+// 处理读
+bool webserver::dealwith_read(int connfd){
+    if(actor_model == proactor){
+        bool ret = connections[connfd].read_once();
+        if(ret){
+            threadpoll_->put(connections+connfd);
+            adjust_timernode(to_timernode[connfd]);
+        }
+        // 失败
+        else {
+            tool.epoll_remove(epollfd,connfd);
+            close(connfd);
+        }
+    }
+    // reactor
+    else {
+        threadpoll_->put(connections+connfd);
+        adjust_timernode(to_timernode[connfd]);
+    }
+}
+// 处理写
+bool webserver::dealwith_write(int connfd){
+    if(actor_model == proactor){
+        bool ret = connections[connfd].write_to_socket();
+        if(ret){
+            adjust_timernode(to_timernode[connfd]);
+        }
+        // 失败
+        else {
+            tool.epoll_remove(epollfd,connfd);
+            close(connfd);
+        }
+    }
+    // reactor
+    else {
+        // 这里不考虑  线程池分读写状态
+        adjust_timernode(to_timernode[connfd]);
+    }
+}
+// 循环读取时间
+void webserver::events_loop(){
+    while(!stop_server){
+        int num = epoll_wait(epollfd,events,MAX_EVENT_NUMBER,-1);
+        if (number < 0 && errno != EINTR){
+            LOG_ERROR("%s", "epoll failure");
+            break;
+        }
+
+        for(int i = 0; i < num; ++i){
+            int sockfd = events[i].data.fd;
+            //新连接
+            if(sockfd == listenfd){
+                accpet_connection();
+            }
+            // 错误
+            else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR) ){
+                tool.epoll_remove(epollfd,connfd);
+                close(connfd);
+            }
+            // 信号
+            else if ((sockfd == pipefd[0]) && (events[i].events & EPOLLIN)){
+                bool ret = dealwith_signal();
+                if(!ret){
+                    LOG_ERROR("%s", "dealsignal failure");
+                }
+            }
+            else if (events[i].events & EPOLLIN){
+                dealwithread(sockfd);
+            }
+            else if (events[i].events & EPOLLOUT){
+                dealwithwrite(sockfd);
+            }
+        }
+        if(time_out){
+            timer_->dealwith_alarm();
+            time_out = false;
+        }
+    }
+}
 
 
 
