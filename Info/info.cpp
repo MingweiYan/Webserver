@@ -170,7 +170,7 @@ void info::flush(){
     m_lock.unlock();
 }
 // 判断是否使用log
-bool info::IsLogOpen(){
+bool info::isLogOpen(){
     return LogOpen;
 }
 

@@ -6,11 +6,14 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include<assert.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 
 #include"../Info/info.h"
 #include"../threadpoll/threadpool.h"
 #include"../mysqlpoll/mysqlpoll.h"
-#include"../timer/timer.h"
+#include"../timer/http_timer.h"
 #include"../timer/list_timer/list_timer.h"
 #include"../tools/tools.h"
 #include"../http/http.h"
@@ -41,14 +44,14 @@ private:
     int listenfd;
     epoll_event events[MAX_EVENT_NUMBER];
     //服务器
-    int serverport; 
+    int server_port; 
     bool  sock_linger;
     int trigueMode;
     http* connections;
     bool stop_server;
     bool time_out;
     //线程池
-    threadpoll<http*> * threadpoll_;
+    threadpoll<http> * threadpoll_;
     int thread_size;
     // 其他
     tools tool;
@@ -60,7 +63,7 @@ public:
     // 初始化
     webserver();
     ~webserver();
-    void init(string dbusername,string dbpassword,int dbport,string dbname,bool useLog,bool logAsyn,bool keepAlive, int trigue_mode,int sql_cnt,int thread_cnt,int actor_model);
+    void init(std::string dbusername,std::string dbpassword,std::string dbname,bool useLog,bool logAsyn,int servport,bool linger, int trigue_mode,int sql_cnt,int thread_cnt,int actor_model);
     void init_log();
     void init_threadpoll();
     void init_mysqlpoll();
@@ -68,16 +71,16 @@ public:
     // 定时器相关
     void adjust_timernode(timer_node*);
     void add_timernode(int fd);
-    void remove_timernode(timer_node*);
+    void remove_timernode(int);
     // epollfd相关
     bool accpet_connection();
     bool dealwith_signal();
-    bool dealwith_read();
-    bool dealwith_write();
+    bool dealwith_read(int);
+    bool dealwith_write(int);
     // 主循环
     void events_loop();
 };
 
-void sig_handler(int sig, int pipefd)
+void sig_handler(int sig, int pipefd);
 
 #endif

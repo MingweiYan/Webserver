@@ -4,6 +4,15 @@
 #include<stdarg.h>
 #include<unordered_map>
 #include <sys/uio.h>
+#include<string.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include<sys/epoll.h>
+#include<sys/socket.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include<sys/mman.h>
 #include"../info/info.h"
 #include"../mysqlpoll/mysqlpoll.h"
 #include"../tools/tools.h"
@@ -55,12 +64,12 @@ const char *error_500_title = "Internal Error";
 const char *error_500_form = "There was an unusual problem serving the request file.\n";
 // 定义并行处理模式
 const int reactor = 0;
-cosnt int proactor = 1;
+const int proactor = 1;
 // 定义EPOLL触发模式
 const int ET = 0;
 const int LT = 1;
 
-static cosnt int file_name_len = 256;
+static const int file_name_len = 256;
 
 class http{
 
@@ -81,7 +90,7 @@ private:
     // 状态
     CHECK_STATE master_state;
     REQUEST_STATE  request;
-    HTTP_METHOD  method;
+    HTTP_METHOD  http_method;
     LINE_STATE  line_state;
     //其他
     int sockfd;
@@ -99,11 +108,12 @@ private:
 
 
     static char* workdir;
-    static std::unordered_map<string,string> users;
+    static std::unordered_map<std::string,std::string> users;
     static tools  tool;
     static int epoll_fd;
-    static int cur_user_cnt;
+    
 public:
+    static int cur_user_cnt;
     //初始化
     void init(int sockfd,int TriggerMode);
     void init();
@@ -112,22 +122,22 @@ public:
     void close_connection();
     static void init_static(char*);
     bool isProactor();
-    void do_request();
+    REQUEST_STATE do_request();
     void unmmap();
     // 读取报文 并进行处理
     bool read_once();
-    void process_read();
+    REQUEST_STATE process_read();
     char* get_line();
     LINE_STATE parse_line();
     REQUEST_STATE parse_requestline(char* line);
     REQUEST_STATE parse_header(char* line);
-    void parse_content();
+    REQUEST_STATE parse_content(char*);
     // 根据报文请求写文件
     bool write_to_socket();
-    bool process_write();
+    bool process_write(REQUEST_STATE);
     bool add_line(const char* format, ...);
     bool add_statusline(int status,const char*);
-    bool add_header();
+    bool add_header(int);
     bool add_content();
     bool add_blank_line();
     bool add_content_len(int size);

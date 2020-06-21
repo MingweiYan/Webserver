@@ -1,7 +1,8 @@
-#ifndef _TIMER_H
-#define _TIMER_H
+#ifndef _HTTP_TIMER_H
+#define _HTTP_TIMER_H
 
 #include<functional>
+#include<unistd.h>
 #include<time.h>
 /*
     定时器节点类

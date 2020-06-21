@@ -2,6 +2,14 @@
 #define _TOOLS_H
 
 
+#include <fcntl.h>
+#include <sys/epoll.h>
+#include <errno.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/socket.h>
+# include <string.h>
 
 class tools{
 

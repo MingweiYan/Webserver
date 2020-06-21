@@ -1,15 +1,12 @@
-#include<string.h>
-#include <sys/stat.h>
-#include <unistd.h>
+
 #include"../http/http.h"
 
 
 //初始化函数
-void http::init(int sockfd,char*root,int TriggerMode){
+void http::init(int sockfd,int TriggerMode){
     sockfd = sockfd;
     epoll_trigger_model = TriggerMode;
     tool.epoll_add(epoll_fd,sockfd,true,true,epoll_trigger_model == ET);
-    workdir = root;
     init();
     m_lock.lock();
     ++cur_user_cnt;
@@ -30,7 +27,7 @@ void http::init(){
 
     master_state = CHECK_REQUESTLINE;
     request = NO_REQUEST;
-    method  = GET;
+    http_method  = GET;
     line_state = LINE_OPEN;
     KeepAlive = false;
 
@@ -41,7 +38,7 @@ void http::init(){
 }
 // 关闭连接
 void http::close_connection(){
-    tool.epoll_remove(epoll_fd,sock_fd);
+    tool.epoll_remove(epoll_fd,sockfd);
     sockfd = -1;
     m_lock.lock();
     --cur_user_cnt;
@@ -58,14 +55,14 @@ void http_work_fun(http* http_conn){
 void http::process(){
     REQUEST_STATE state = process_read();
     if(state == NO_REQUEST){
-        tool.epoll_mod(epoll_fd,sockfd,EPOLL_IN,true,epoll_trigger_model ==ET );
+        tool.epoll_mod(epoll_fd,sockfd,EPOLLIN,true,epoll_trigger_model ==ET );
         return ;
     }
     bool ret = process_write(state);
     if(!ret){
-        close_connection()
+        close_connection();
     }
-    tool.epoll_mod(epoll_fd,sockfd,EPOLL_OUT,true,epoll_trigger_model ==ET );
+    tool.epoll_mod(epoll_fd,sockfd,EPOLLOUT,true,epoll_trigger_model ==ET );
 }
 // 从socket读取信息到读缓存  根据ET和LT选择不同的读取方式
 bool http::read_once(){
@@ -103,7 +100,7 @@ void http::init_static(char* root){
 
     //先从连接池中取一个连接
     mysqlconnection mysqlcon;
-    MYSQL *mysql = mysqlcon->get_mysql();
+    MYSQL *mysql = mysqlcon.get_mysql();
     //在user表中检索username，passwd数据，浏览器端输入
     if (mysql_query(mysql, "SELECT username,passwd FROM user")){
         LOG_ERROR("SELECT error:%s\n", mysql_error(mysql));
@@ -114,14 +111,12 @@ void http::init_static(char* root){
     int num_fields = mysql_num_fields(result);
     //返回所有字段结构的数组
     MYSQL_FIELD *fields = mysql_fetch_fields(result);
-    //从结果集中获取下一行，将对应的用户名和密码，存入map中
-    m_lock.lock();
+    //从结果集中获取下一行，将对应的用户名和密码，存入map中  
     while (MYSQL_ROW row = mysql_fetch_row(result)){
         std::string temp1(row[0]);
         std::string temp2(row[1]);
         users[temp1] = temp2;
     }
-    m_lock.unlock();
 }
 // 获取新读入数据指针
 char* http::get_line(){
@@ -135,7 +130,7 @@ LINE_STATE http::parse_line(){
             return LINE_BAD;
         }
         if(temp == '\n' && read_buf[cur_parse_idx-1]=='\r'){
-            readbuf[cur_parse_idx-1] = '\0';
+            read_buf[cur_parse_idx-1] = '\0';
             read_buf[cur_parse_idx++] = '\0';
             return LINE_OK;
         }
@@ -156,9 +151,9 @@ REQUEST_STATE  http::parse_requestline(char* line){
     char * method = line;
     // 忽略大小写比较  
     if(strcasecmp(method, "GET") == 0){
-        HTTP_METHOD = GET;
+        http_method = GET;
     } else if(strcasecmp(method, "POST") == 0){
-        HTTP_METHOD = POST;
+         http_method = POST;
     } else{
         return BAD_REQUEST;
     }
@@ -172,7 +167,7 @@ REQUEST_STATE  http::parse_requestline(char* line){
     *version = '\0';
     request_url = idx;
     ++version;
-    version = strspn(version," \t");
+    version += strspn(version," \t");
     if(strcasecmp(version, "HTTP/1.1") != 0){
         return BAD_REQUEST;
     }
@@ -238,8 +233,8 @@ REQUEST_STATE http::parse_content(char* line){
     return NO_REQUEST;
 }
 // 读取报文并得到请求
-void http::process_read(){
-    while( (master_state == CHECK_CONTENT && line_state == LINE_OK) || （ line_state = parse_line() ) == LINE_OK ){
+REQUEST_STATE http::process_read(){
+    while( (master_state == CHECK_CONTENT && line_state == LINE_OK) || ( line_state = parse_line() ) == LINE_OK ){
         char* line = get_line();
         cur_parseline_head = cur_parse_idx;
         LOG_INFO("%s", line);
@@ -291,7 +286,7 @@ REQUEST_STATE http::do_request(){
     // 登录页面
     else if(*(p+1) == '1'){
         char* tail_url = (char*) malloc(sizeof(char)*200);
-        strcpy(tail_url,= "/log.html";
+        strcpy(tail_url, "/log.html");
         strncpy(native_request_url+len,tail_url,strlen(tail_url));
         free(tail_url);
     }
@@ -353,7 +348,7 @@ REQUEST_STATE http::do_request(){
 
         if(!users.count(name)){
             m_lock.lock();
-            int res = mysql_query(mysqlconn,sql_insert);
+            int res = mysql_query(mysqlconn,sql_insert.c_str());
             users.insert({name,password});
             m_lock.unlock();
             if(res==0){
@@ -368,21 +363,21 @@ REQUEST_STATE http::do_request(){
     // 请求图片
     else if(*(p+1) == '5'){
         char* tail_url = (char*) malloc(sizeof(char)*200);
-        strcpy(tail_url,= "/picture.html";
+        strcpy(tail_url, "/picture.html");
         strncpy(native_request_url+len,tail_url,strlen(tail_url));
         free(tail_url);
     }
     // 请求视频
     else if(*(p+1) == '6'){
         char* tail_url = (char*) malloc(sizeof(char)*200);
-        strcpy(tail_url,= "/video.html";
+        strcpy(tail_url, "/video.html");
         strncpy(native_request_url+len,tail_url,strlen(tail_url));
         free(tail_url);
     }
     // 请求关注页面
     else if(*(p+1) == '7'){
         char* tail_url = (char*) malloc(sizeof(char)*200);
-        strcpy(tail_url,= "/fans.html";
+        strcpy(tail_url, "/fans.html");
         strncpy(native_request_url+len,tail_url,strlen(tail_url));
         free(tail_url);
     }
@@ -402,7 +397,7 @@ REQUEST_STATE http::do_request(){
     }
 
     int fd = open(native_request_url,O_RDONLY);
-    mmap_addr = (char *)mmap(0, m_file_stat.st_size, PROT_READ, MAP_SHARED, fd, 0);
+    mmap_addr = (char *)mmap(0, file_stat.st_size, PROT_READ, MAP_SHARED, fd, 0);
     close(fd);
     return FILE_REQUEST;
 }
@@ -515,15 +510,15 @@ bool http::process_write(REQUEST_STATE state){
 // 写函数
 bool http::write_to_socket(){
     if(bytes_to_send == 0){
-        tool.epoll_mod(epoll_fd, sockfd,EPOLL_IN,true,epoll_trigger_model ==ET);
+        tool.epoll_mod(epoll_fd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
         init();
         return true;
     }
     while(1){
-        int bytes = write_v(sockfd,m_iv,m_iv_cnt);
+        int bytes = writev(sockfd,m_iv,m_iv_cnt);
         if(bytes<0){
             if(errno == EAGAIN){
-                tool.epoll_mod(epoll_fd, sockfd,EPOLL_OUT,true,epoll_trigger_model ==ET);
+                tool.epoll_mod(epoll_fd, sockfd,EPOLLOUT,true,epoll_trigger_model ==ET);
                 return true;
             }
             unmmap();
@@ -543,7 +538,7 @@ bool http::write_to_socket(){
         // 发送完毕
         if(bytes_to_send<=0){
             unmmap();
-            tool.epoll_mod(epoll_fd, sockfd,EPOLL_IN,true,epoll_trigger_model ==ET);
+            tool.epoll_mod(epoll_fd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
             if(KeepAlive){
                 init();
                 return true;

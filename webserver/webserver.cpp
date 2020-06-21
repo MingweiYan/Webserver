@@ -1,10 +1,9 @@
+
 #include"../webserver/webserver.h"
-
-
 // 信号处理函数
 void sig_handler(int sig, int pipefd){
     int pre_erro = errno;
-    send(pipefd,(char*)sig,1,0);
+    send(pipefd[1],(char*)sig,1,0);
     errno = pre_erro;
 }
 
@@ -33,7 +32,6 @@ void http_work_func(http* conn){
 // 构造函数
 webserver::webserver(){
     connections = new http[MAX_FD];
-    connections.resize(MAX_FD);
     char server_path[256];
     getcwd(server_path,sizeof(server_path));
     char root[6] = "/root"; 
@@ -46,7 +44,7 @@ webserver::~webserver(){
     close(epollfd);
     close(listenfd);
     close(pipefd[1]);
-    close(m_pipefd[0]);
+    close(pipefd[0]);
     free(rootPath);
     delete timer_;
     delete threadpoll_;
@@ -67,14 +65,14 @@ void webserver::init(std::string dbusername,std::string dbpassword,std::string d
     thread_size = thread_cnt;
     actor_model = actor_model; 
     threadpoll_  = NULL;      
-    serverport =   servport;
+    server_port =   servport;
     timer_slot = 5;
     stop_server = false;
     time_out = false;
 }
 // 初始化线程库
 void webserver::init_threadpoll(){
-    threadpoll_ = new threadpoll<http*>(http_work_func,thread_size);
+    threadpoll_ = new threadpoll<http>(http_work_func,thread_size);
 }
 // 初始化log
 void webserver::init_log(){
@@ -103,12 +101,12 @@ void webserver::init_listen(){
     // listen
     struct sockaddr_in address;
     bzero(&address,sizeof(address));
-    address.sin_famlily = AF_INET;
+    address.sin_family = AF_INET;
     address.sin_addr.s_addr = htonl(INADDR_ANY);
     address.sin_port = htons(server_port);
     int flag = 1;
     setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
-    ret = bind(listenfd, (struct sockaddr *)&address, sizeof(address));
+    int ret = bind(listenfd, (struct sockaddr *)&address, sizeof(address));
     assert(ret >= 0);
     ret = listen(listenfd, 5);
     assert(ret >= 0);
@@ -118,11 +116,11 @@ void webserver::init_listen(){
     assert(epollfd != -1);
     // LT + LT  LT + ET 
     if(trigueMode == 0 || trigueMode == 1){
-        tool.epoll_add(epollfd,listenfd,flase,false);
+        tool.epoll_add(epollfd,listenfd,false,false,false);
     }
     http::set_epoll_fd(epollfd);
 
-    ret = socket_pair(PF_UNIX,SOCK_STEREAM,0,pipefd);
+    ret = socketpair(PF_UNIX,SOCK_STREAM,0,pipefd);
     assert(ret != -1 );
     // 写非阻塞
     tool.setnonblocking(pipefd[1]);
@@ -135,16 +133,17 @@ void webserver::init_listen(){
 //重新调整定时器
 void webserver::adjust_timernode(timer_node* timer){
     time_t cur = time(NULL);
-    timer->expire = cur + 3 * TIMESLOT;
+    timer->expire_time = cur + 3 * TIMESLOT;
     timer_->adjust(timer);
     LOG_INFO("%s%d", "adjust timer",timer->sockfd);
 }
 //在接受连接时添加一个定时器
 void webserver::add_timernode(int fd){
-    timer_node timer;
+    // 这里有问题
+    timer_node* timer ;
     timer->sockfd = fd;
     time_t cur = time(NULL);
-    timer->expire = cur + 3 * TIMESLOT;
+    timer->expire_time = cur + 3 * TIMESLOT;
     timer_->add(timer);
     to_timernode[fd] = timer;
 }
@@ -169,8 +168,8 @@ bool webserver::accpet_connection(){
             LOG_ERROR("%s:errno is:%d", "accept connection error", errno);
             return false;
         }
-        if (http_conn::m_user_count >= MAX_FD){
-            utils.show_error(connfd, "Internal server busy");
+        if (http::cur_user_cnt >= MAX_FD){
+            show_error(connfd, "Internal server busy");
             LOG_ERROR("%s", "Internal server busy");
             return false;
         }
@@ -191,8 +190,8 @@ bool webserver::accpet_connection(){
                 LOG_ERROR("%s:errno is:%d", "accept error", errno);
                 break;
             }
-            if (http_conn::m_user_count >= MAX_FD){
-                utils.show_error(connfd, "Internal server busy");
+            if (http::cur_user_cnt >= MAX_FD){
+                show_error(connfd, "Internal server busy");
                 LOG_ERROR("%s", "Internal server busy");
                 break;
             }
@@ -212,7 +211,7 @@ bool webserver::accpet_connection(){
 // 处理信号
 bool webserver::dealwith_signal(){
     char signals[1024];
-    int ret = recv(m_pipefd[0], signals, sizeof(signals), 0);
+    int ret = recv(pipefd[0], signals, sizeof(signals), 0);
     if (ret == -1){
         return false;
     }
@@ -276,7 +275,7 @@ bool webserver::dealwith_write(int connfd){
 void webserver::events_loop(){
     while(!stop_server){
         int num = epoll_wait(epollfd,events,MAX_EVENT_NUMBER,-1);
-        if (number < 0 && errno != EINTR){
+        if (num < 0 && errno != EINTR){
             LOG_ERROR("%s", "epoll failure");
             break;
         }
@@ -289,8 +288,8 @@ void webserver::events_loop(){
             }
             // 错误
             else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR) ){
-                tool.epoll_remove(epollfd,connfd);
-                close(connfd);
+                tool.epoll_remove(epollfd,sockfd);
+                close(sockfd);
             }
             // 信号
             else if ((sockfd == pipefd[0]) && (events[i].events & EPOLLIN)){
@@ -300,10 +299,10 @@ void webserver::events_loop(){
                 }
             }
             else if (events[i].events & EPOLLIN){
-                dealwithread(sockfd);
+                dealwith_read(sockfd);
             }
             else if (events[i].events & EPOLLOUT){
-                dealwithwrite(sockfd);
+                dealwith_write(sockfd);
             }
         }
         if(time_out){
@@ -313,5 +312,8 @@ void webserver::events_loop(){
     }
 }
 
+// 直接发送错误信息 
+void show_error(){
 
+}
 
