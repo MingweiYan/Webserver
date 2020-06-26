@@ -19,12 +19,15 @@ private:
     locker m_lock;
     sem m_sem;
     // 数据库参数
-    std::string host;
-    int port;
+    std::string dbhost;
+    int dbport;
     std::string dbusername;
     std::string dbpasswd;
     std::string dbname; 
+    // 构造函数
+    mysqlpoll();
 public:
+    ~mysqlpoll();
     static mysqlpoll* getInstance();
     MYSQL* get_connection();
     void release_connection(MYSQL*);

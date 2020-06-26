@@ -24,6 +24,11 @@ const int MAX_EVENT_NUMBER = 10000; //最大事件数
 const int TIMESLOT = 5;             //最小超时单位
 
 
+/*struct client_data{
+    http* conn;
+    int fd;
+    timer_node timer_;
+};*/
 
 class webserver
 {
@@ -72,6 +77,7 @@ public:
     void adjust_timernode(timer_node*);
     void add_timernode(int fd);
     void remove_timernode(int);
+    void timer_handler();
     // epollfd相关
     bool accpet_connection();
     bool dealwith_signal();
@@ -79,6 +85,7 @@ public:
     bool dealwith_write(int);
     // 主循环
     void events_loop();
+
 };
 
 void sig_handler(int sig, int pipefd);

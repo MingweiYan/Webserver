@@ -10,11 +10,14 @@
 
 #include"../tools/tools.h"
 
+
+
 // 设置文件描述符非阻塞
-void tools::setnonblocking(int fd){
+int tools::setnonblocking(int fd){
     int pre = fcntl(fd,F_GETFL);
     int cur = pre | O_NONBLOCK;
     fcntl(fd,F_SETFL, cur);
+    return pre;
 }
 // 在epoll中注册事件
 void tools::epoll_add(int epollfd, int fd,bool read,bool one_shot,bool ET){
@@ -62,5 +65,10 @@ void tools::set_sigfunc(int sig,void(handler)(int), bool restrart){
     sigfillset(&sa.sa_mask);
     int ret = sigaction(sig,&sa,NULL);
     assert(ret!=-1);
-    
+}
+// 信号处理函数
+void sig_handler(int sig){
+    int pre_erro = errno;
+    send(pipefd[1],(char*)sig,1,0);
+    errno = pre_erro;
 }

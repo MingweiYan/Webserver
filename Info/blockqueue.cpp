@@ -13,17 +13,26 @@ blockqueue<T>::blockqueue(int size )
     if(!res){
         throw std::exception();
     }
+    cur_size = 0;
+    max_size = size;
+    front = -1;
+    back = -1;
 }
 //析构函数
 template<typename T>
 blockqueue<T>::~blockqueue(){
-    delete [] res;
+    m_lock.lock();
+    if(res){
+        delete [] res;
+    }
+    m_lock.unlock();
 }
 // 在队列尾放置元素
 template<typename T>
 bool blockqueue<T>::push_back(const T& item){
     m_lock.lock();
     if(cur_size>=max_size){
+        m_cond.broadcast();
         m_lock.unlock();
         return false;
     }
@@ -39,8 +48,9 @@ bool blockqueue<T>::push_back(const T& item){
 template<typename T>
 bool blockqueue<T>::pop_front(T& item){
     m_lock.lock();
-    while(cur_size<=0){
+    while(cur_size <= 0){
         bool ret = m_cond.wait(&m_lock);
+        // 条件变量出错
         if(!ret){
             return false;
         }
@@ -52,5 +62,20 @@ bool blockqueue<T>::pop_front(T& item){
     m_lock.unlock();
     return true;
 }
-
-
+// 清空阻塞队列
+template<typename T>
+void  blockqueue<T>::clear(){
+    m_lock.lock();
+    cur_size = 0 ;
+    front = -1;
+    back = -1;
+    m_lock.unlock();
+}
+// 判断是否已满
+template<typename T>
+bool blockqueue<T>::isFull(){
+    m_lock.lock();
+    bool flag =  ( cur_size >= max_size);
+    m_lock.unlock();
+    return flag;
+}

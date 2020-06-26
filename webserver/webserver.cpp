@@ -1,12 +1,21 @@
 
 #include"../webserver/webserver.h"
-// 信号处理函数
-void sig_handler(int sig, int pipefd){
-    int pre_erro = errno;
-    send(pipefd[1],(char*)sig,1,0);
-    errno = pre_erro;
+
+/*
+    非成员函数
+*/
+
+// 直接发送错误信息 
+void show_error(int connfd,const char* info){
+    send(connfd,info,sizeof(info),0);
+    close(connfd);
+}
+// 定时器定时处理函数
+void timer_handler(timer_node* node){
+    node->conn->close_connection();
 }
 
+//  !!!  这里需不需要对conn分状态？？？
 // 线程池的工作函数  
 void http_work_func(http* conn){
     // reactor
@@ -29,6 +38,10 @@ void http_work_func(http* conn){
         conn->process();
     }
 }
+
+/*
+    构造和析构
+*/
 // 构造函数
 webserver::webserver(){
     connections = new http[MAX_FD];
@@ -50,6 +63,13 @@ webserver::~webserver(){
     delete threadpoll_;
     delete connections;
 }
+
+
+/*
+    初始化函数
+*/
+
+
 // 初始化函数
 void webserver::init(std::string dbusername,std::string dbpassword,std::string dbname,bool useLog,bool logAsyn,
             int servport,bool linger, int trigue_mode,int sql_cnt,int thread_cnt,int actor_model){
@@ -129,7 +149,14 @@ void webserver::init_listen(){
     tool.set_sigfunc(SIGALRM,sig_handler,false);
     tool.set_sigfunc(SIGTERM,sig_handler,false);
     alarm(timer_slot);
-}   
+} 
+
+
+/*
+    定时器相关
+*/
+
+
 //重新调整定时器
 void webserver::adjust_timernode(timer_node* timer){
     time_t cur = time(NULL);
@@ -153,9 +180,16 @@ void webserver::remove_timernode(int fd){
     timer_->remove(timer);
     to_timernode.erase(fd);
 }
+// 定时器处理
+void webserver::timer_handler(){
+    timer_->tick();
+    alarm(timer_->slot());
+}
 
 
-
+/*
+    处理epoll事件
+*/
 
 // 建立连接
 bool webserver::accpet_connection(){
@@ -271,6 +305,9 @@ bool webserver::dealwith_write(int connfd){
         adjust_timernode(to_timernode[connfd]);
     }
 }
+/*
+    主循环
+*/
 // 循环读取时间
 void webserver::events_loop(){
     while(!stop_server){
@@ -312,8 +349,5 @@ void webserver::events_loop(){
     }
 }
 
-// 直接发送错误信息 
-void show_error(){
 
-}
 

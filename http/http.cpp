@@ -39,6 +39,7 @@ void http::init(){
 // 关闭连接
 void http::close_connection(){
     tool.epoll_remove(epoll_fd,sockfd);
+    close(sockfd);
     sockfd = -1;
     m_lock.lock();
     --cur_user_cnt;

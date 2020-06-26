@@ -4,13 +4,14 @@
 #include<functional>
 #include<unistd.h>
 #include<time.h>
+#include"../http/http.h"
+
 /*
     定时器节点类
 */
 struct timer_node{
-    timer_node* prev;
-    timer_node* next;
     time_t expire_time;
+    http* conn;
     int sockfd; 
 };
 /*
@@ -24,7 +25,7 @@ private:
     std::function<void(timer_node*)> func;
 
 public:
-    timer(int slot = 15):timer_slot(15){};
+    timer(int slot = 15):timer_slot(slot){};
     virtual ~timer();
     void set_slot(int i) {timer_slot = i;}
     virtual void add(timer_node*) const = 0;
@@ -35,6 +36,7 @@ public:
     int slot(){
         return timer_slot;
     }
+    // 预留
     void setfunc(std::function<void(timer_node*)> f){
         func = f;
     }

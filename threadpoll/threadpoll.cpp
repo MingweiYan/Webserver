@@ -9,26 +9,30 @@
 // 构造函数
 template<typename T>
 threadpoll<T>::threadpoll(std::function<void (T*)> func,int thread_poll_size,int work_list_size = 10000)
-: thread_poll_size(thread_poll_size),max_size(work_list_size),cur_size(0),work_func(func){
+: thread_poll_size(thread_poll_size),max_work_size(work_list_size),cur_work_size(0),work_func(func){
+
     if(work_list_size<=0 || thread_poll_size<=0){
-        LOG_ERROR("initial incorrect threadpoll size")
+        LOG_ERROR("input incorrect threadpoll size when init threadpoll")
         exit(1);
     }
         
     pthread_id = new pthread_t[thread_poll_size];
-    if(!pthread_id) 
+    if(!pthread_id){
+        LOG_ERROR("allocate pthread matrix error ")
         throw std::exception();
+    } 
+        
     for(int i = 0; i<thread_poll_size; ++i){
-        int ret = pthread_create(pthread_id+i,NULL,pthread_init,this);
+        int ret = pthread_create(pthread_id+i,NULL,thread_init_func,this);
         if(ret!=0){
             delete [] pthread_id;
-            LOG_ERROR("threadpoll create error")
+            LOG_ERROR("threadpoll create thread error")
             exit(1);
         }
         ret = pthread_detach(pthread_id[i]);
         if(ret!=0){
             delete [] pthread_id;
-            LOG_ERROR("threadpoll detach error")
+            LOG_ERROR("threadpoll detach  thread error")
             exit(1);
         }
     }
@@ -36,7 +40,9 @@ threadpoll<T>::threadpoll(std::function<void (T*)> func,int thread_poll_size,int
 // 析构函数
 template<typename T>
 threadpoll<T>::~threadpoll(){
-    delete [] pthread_id;
+    if(pthread_id != NULL){
+        delete [] pthread_id;
+    }
 }
 //线程初始化函数 
 template<typename T>
@@ -65,12 +71,12 @@ void threadpoll<T>::set_work_fun(std::function<void (T*)> func){
 template<typename T>
 bool threadpoll<T>::put(T* work){
     m_lock.lock();
-    if(cur_size>=max_size){
+    if(cur_work_size>=max_work_size){
         m_lock.unlock();
         return false;
     }
     work_list.push_back(work);
-    ++cur_size;
+    ++cur_work_size;
     m_lock.unlock;
     m_sem.post();
     return true;
@@ -79,13 +85,13 @@ bool threadpoll<T>::put(T* work){
 template<typename T>
 bool threadpoll<T>::get(T* work){
     m_lock.lock();
-    if(cur_size<=0){
+    if(cur_work_size<=0){
         return false;
         m_lock.unlock();
     }
     work = work_list.front();
     work_list.pop_front();
-    --cur_size;
+    --cur_work_size;
     m_lock.unlock();
     return  true;
 }

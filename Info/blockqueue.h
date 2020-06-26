@@ -21,6 +21,8 @@ public:
     ~blockqueue();
     bool push_back(const T&);
     bool pop_front(T&);
+    void clear();
+    bool isFull();
 };
 
 #endif

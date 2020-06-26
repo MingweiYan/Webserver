@@ -10,27 +10,32 @@
 
 */
 
+mysqlpoll::~mysqlpoll(){
+    destory();
+}
 // 单例模式
 mysqlpoll* mysqlpoll::getInstance(){
     static mysqlpoll  instance;
     return &instance;
 }
 // 初始化
-void mysqlpoll::init(std::string host,std::string dbusername,std::string dbpasswd,int port,std::string dbname, int connection_num){
-    host = host;
-    dbusername = dbusername;
-    dbpasswd = dbpasswd;
-    port = port;
-    dbname = dbname;
+void mysqlpoll::init(std::string host,std::string username,std::string passwd,int port,std::string name, int connection_num){
+
+    dbhost = host;
+    dbusername = username;
+    dbpasswd = passwd;
+    dbport = port;
+    dbname = name;
     max_size = connection_num;
-    for(int i = 0; i<connection_num; ++i){
+
+    for(int i = 0; i < connection_num; ++i){
         MYSQL* con = NULL;
         con = mysql_init(con);
         if(con == NULL){
             LOG_ERROR("MySQL inital error")
             exit(1);
         }
-        con = mysql_real_connect(con,host.c_str(),dbname.c_str(),dbpasswd.c_str(),dbname.c_str(),port,NULL,0);
+        con = mysql_real_connect(con,dbhost.c_str(),dbname.c_str(),dbpasswd.c_str(),dbname.c_str(),dbport,NULL,0);
         if(con == NULL){
             LOG_ERROR("MySQL connection error")
             exit(1);
@@ -39,22 +44,14 @@ void mysqlpoll::init(std::string host,std::string dbusername,std::string dbpassw
     }
     m_sem = sem(connection_num);
 }   
-// 释放所有链接
-void mysqlpoll::destory(){
-    m_lock.lock();
-    for(MYSQL* conn: mysql_list){
-        mysql_close(conn);
-    }
-    mysql_list.clear();
-    m_lock.unlock();
-}
 // 获取一个MYSQL连接
 MYSQL* mysqlpoll::get_connection(){
     m_sem.wait();
     m_lock.lock();
-
-    MYSQL* con = NULL;
-    con = mysql_list.front();
+    if(mysql_list.empty()){
+        return NULL;
+    }
+    MYSQL* con = mysql_list.front();
     mysql_list.pop_front();
     m_lock.unlock();
     return con;  
@@ -66,6 +63,15 @@ void mysqlpoll::release_connection(MYSQL* conn){
     mysql_list.push_back(conn);
     m_lock.unlock();
     m_sem.post();
+}
+// 释放所有链接 清空list
+void mysqlpoll::destory(){
+    m_lock.lock();
+    for(MYSQL* conn: mysql_list){
+        mysql_close(conn);
+    }
+    mysql_list.clear();
+    m_lock.unlock();
 }
 
 /*
