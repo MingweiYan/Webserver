@@ -44,6 +44,10 @@ bool info::init(bool LogOpen,std::string file_name,int max_file_line_perfile,int
         if(ret!=0){
             throw std::exception();
         }
+        ret = pthread_detach(tid);
+        if(ret!=0){
+            throw std::exception();
+        }
     }
     write_buf = new char[write_buf_size];
     memset(write_buf,'\0',write_buf_size);
@@ -102,6 +106,8 @@ void info::write_line(int level, const char* format, ...){
     m_lock.lock();
     // 已经打开的文件不是今天的log文件
     if(cur_time->tm_mday != last_time_day){
+        // 异步写在写新的一行前 先写完所有存在的数据
+        while(isAsyn && !lines_to_write->empty()) ;
         fflush(fp);
         fclose(fp);
         snprintf(log_full_name, 255, "%s%d_%02d_%02d_%s", dir_name, cur_time->tm_year + 1900, cur_time->tm_mon + 1, cur_time->tm_mday, log_name);

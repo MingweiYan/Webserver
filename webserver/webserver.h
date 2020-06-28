@@ -9,6 +9,7 @@
 #include<assert.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <getopt.h>
 
 #include"../Info/info.h"
 #include"../threadpoll/threadpool.h"
@@ -40,42 +41,45 @@ private:
     int dbport;
     int sql_conn_size;
     // 定时器相关
-    timer*  timer_;
+    timer*  timers;
     int pipefd[2];
     time_t timer_slot;
-    std::unordered_map<int,timer_node*> to_timernode;
+    timer_node* to_timernode[MAX_FD];
     //epoll 相关
     int epollfd;
     int listenfd;
     epoll_event events[MAX_EVENT_NUMBER];
     //服务器
     int server_port; 
-    bool  sock_linger;
+    bool sock_linger;
     int trigueMode;
-    http* connections;
+    http* http_conns;
     bool stop_server;
     bool time_out;
+    int actor_model;
+    char* rootPath;
     //线程池
-    threadpoll<http> * threadpoll_;
+    threadpoll<http> * m_threadpoll;
     int thread_size;
     // 其他
     tools tool;
-    int actor_model;
+    // 日志
     bool LogOpen;
-    bool  LogAsynWrite;
-    char * rootPath;
+    bool LogAsynWrite;
 public:
-    // 初始化
+    // 构造
     webserver();
     ~webserver();
+    void parse_arg(std::string dbuser,std::string dbpasswd,std::string dbname, int argc, char* argv[]);
+    // 初始化
     void init(std::string dbusername,std::string dbpassword,std::string dbname,bool useLog,bool logAsyn,int servport,bool linger, int trigue_mode,int sql_cnt,int thread_cnt,int actor_model);
     void init_log();
     void init_threadpoll();
     void init_mysqlpoll();
     void init_listen();
     // 定时器相关
-    void adjust_timernode(timer_node*);
     void add_timernode(int fd);
+    void adjust_timernode(timer_node*);
     void remove_timernode(int);
     void timer_handler();
     // epollfd相关
@@ -89,5 +93,6 @@ public:
 };
 
 void sig_handler(int sig, int pipefd);
+void show_error(int connfd,const char* info);
 
 #endif

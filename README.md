@@ -23,6 +23,7 @@
             bool pop_front(T&);
             void clear();
             bool isFull();
+            bool empty();
 
         1. 条件变量的使用
             while(cur_size <= 0){
@@ -142,3 +143,75 @@
 
 
 # http文件夹
+
+    http类
+
+
+
+        API：
+
+            void init(int sockfd,int TriggerMode);
+            void init();
+            friend static void init_http_static(char*);
+            
+            void process();
+            void close_connection();
+            bool isProactor();
+            void unmmap();
+            // 从socket读取到缓存区，返回false的原因有  缓存区已满，对面关闭了连接 或者出错
+            bool read_once();
+            // BADREQUEST 可能是处理请求行或者首部行 
+            REQUEST_STATE process_read();
+            char* get_line();
+            // 从解析指针开始逐字符解析 直到解析一行或者解析完缓存区
+            LINE_STATE parse_line();
+            // 解析请求行   解析任意一个环节出错返回 BAD——REQUEST 解析完毕则返回 NO_REQUEST
+            REQUEST_STATE parse_requestline(char* line);
+            // 解析首部行  如果GET 解析完毕就返回 GET_REQUEST 否则就是NO_REQUEST
+            REQUEST_STATE parse_header(char* line);
+            REQUEST_STATE parse_content(char*);
+            // 处理得到的请求
+            REQUEST_STATE do_request();
+            // 根据报文请求写文件  只有当写内容出错 或者 传入的请求不对时返回false
+            bool process_write(REQUEST_STATE);
+            // 返回false 的情况有  写出错  或者写完之后  返回true的情况有  不需要发送 或者发送完 重新初始化
+            bool write_to_socket();
+            // 写一行内容到写缓存，  返回false 可能是 写缓存已满，或者不满但放不下要写的内容
+            bool add_line(const char* format, ...);
+            bool add_statusline(int status,const char*);
+            bool add_header(int);
+            bool add_keepalive();
+            bool add_content_type();
+            bool add_content_len(int size);
+            bool add_blank_line();
+            bool add_content(const char*);
+            static void set_epoll_fd(int fd);
+
+
+
+
+
+# webserver文件夹
+
+    webserver类
+
+        API :
+            // 初始化
+            void parse_arg(int argc, char* argv[]);
+            void init(std::string dbusername,std::string dbpassword,std::string dbname,bool useLog,bool logAsyn,int servport,bool linger, int trigue_mode,int sql_cnt,int thread_cnt,int actor_model);
+            void init_log();
+            void init_threadpoll();
+            void init_mysqlpoll();
+            void init_listen();
+            // 定时器相关
+            void adjust_timernode(timer_node*);
+            void add_timernode(int fd);
+            void remove_timernode(int);
+            void timer_handler();
+            // epollfd相关
+            bool accpet_connection();
+            bool dealwith_signal();
+            bool dealwith_read(int);
+            bool dealwith_write(int);
+            // 主循环
+            void events_loop();

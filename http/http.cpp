@@ -1,103 +1,13 @@
 
 #include"../http/http.h"
 
-
-//初始化函数
-void http::init(int sockfd,int TriggerMode){
-    sockfd = sockfd;
-    epoll_trigger_model = TriggerMode;
-    tool.epoll_add(epoll_fd,sockfd,true,true,epoll_trigger_model == ET);
-    init();
-    m_lock.lock();
-    ++cur_user_cnt;
-    m_lock.unlock(); 
-}
-void http::init(){
-    memset(read_buf,'\0',read_buf_size);
-    memset(write_buf,'\0',write_buf_size);
-    memset(native_request_url,'\0',file_name_len);
-
-    cur_wr_idx = 0;
-    cur_rd_idx = 0;
-    cur_parse_idx = 0;
-    cur_parseline_head = 0;
-    content_len = 0;
-    bytes_to_send = 0;
-    bytes_have_send = 0;
-
-    master_state = CHECK_REQUESTLINE;
-    request = NO_REQUEST;
-    http_method  = GET;
-    line_state = LINE_OPEN;
-    KeepAlive = false;
-
-    request_url = NULL;
-    post_line = NULL;
-    mmap_addr = NULL;
-    m_iv_cnt = 0;
-}
-// 关闭连接
-void http::close_connection(){
-    tool.epoll_remove(epoll_fd,sockfd);
-    close(sockfd);
-    sockfd = -1;
-    m_lock.lock();
-    --cur_user_cnt;
-    m_lock.unlock(); 
-}
-// http的工作函数
-void http_work_fun(http* http_conn){
-    if(!http_conn->isProactor()){
-        if(http_conn->read_once()){
-
-        }
-    }
-}
-void http::process(){
-    REQUEST_STATE state = process_read();
-    if(state == NO_REQUEST){
-        tool.epoll_mod(epoll_fd,sockfd,EPOLLIN,true,epoll_trigger_model ==ET );
-        return ;
-    }
-    bool ret = process_write(state);
-    if(!ret){
-        close_connection();
-    }
-    tool.epoll_mod(epoll_fd,sockfd,EPOLLOUT,true,epoll_trigger_model ==ET );
-}
-// 从socket读取信息到读缓存  根据ET和LT选择不同的读取方式
-bool http::read_once(){
-    // 已满 直接返回
-    if(cur_rd_idx>read_buf_size){
-        return false;
-    }
-    int bytes_recv = 0;
-    if(epoll_trigger_model == ET){
-        while(true){
-            bytes_recv = recv(sockfd,read_buf+cur_rd_idx,read_buf_size-cur_rd_idx,0);
-            if(bytes_recv ==-1){
-                if(errno == EAGAIN || errno == EWOULDBLOCK)
-                    break;
-            } else if (bytes_recv == 0){
-                return false;
-            }
-            cur_rd_idx += bytes_recv;
-        }
-        return true;
-    } else if(epoll_trigger_model == LT) {
-        bytes_recv = recv(sockfd,read_buf+cur_rd_idx,read_buf_size-cur_rd_idx,0);
-        if(bytes_recv<0){
-            return false;
-        }
-        cur_rd_idx += bytes_recv;
-        return true;
-    }
-}
 // 从Mysql中获取用户登录信息
-void http::init_static(char* root){
+// 初始化静态变量
+void init_http_static(char* root){
 
-    cur_user_cnt = 0;
-    workdir = root;
+    http::cur_user_cnt = 0;
+    http::workdir = root;
+    http::epollfd = 0;
 
     //先从连接池中取一个连接
     mysqlconnection mysqlcon;
@@ -119,15 +29,126 @@ void http::init_static(char* root){
         users[temp1] = temp2;
     }
 }
+//初始化函数
+void http::init(int sockfd,int TriggerMode){
+    sockfd = sockfd;
+    epoll_trigger_model = TriggerMode;
+    // 添加到epoll
+    tool.epoll_add(epollfd,sockfd,true,true,epoll_trigger_model == ET);
+    init();
+    m_lock.lock();
+    ++cur_user_cnt;
+    m_lock.unlock(); 
+}
+void http::init(){
+
+    memset(read_buf,'\0',READ_BUFFER_SIZE);
+    memset(write_buf,'\0',WRITE_BUFFER_SIZE);
+    memset(native_request_url,'\0',file_name_len);
+
+    cur_wr_idx = 0;
+    cur_rd_idx = 0;
+    cur_parse_idx = 0;
+    cur_parseline_head = 0;
+    content_len = 0;
+    bytes_to_send = 0;
+    bytes_have_send = 0;
+
+    master_state = CHECK_REQUESTLINE;
+    cur_http_methd  = GET;
+    line_state = LINE_OPEN;
+
+    KeepAlive = false;
+
+    request_url = NULL;
+    mmap_addr = NULL;
+    m_iv_cnt = 0;
+}
+
+// 关闭连接
+void http::close_connection(){
+    tool.epoll_remove(epollfd,sockfd);
+    close(sockfd);
+    sockfd = -1;
+    m_lock.lock();
+    --cur_user_cnt;
+    m_lock.unlock(); 
+}
+// http的工作函数
+void http_work_fun(http* http_conn){
+    if(!http_conn->isProactor()){
+        if(http_conn->read_once()){
+
+        }
+    }
+}
+void http::process(){
+    // 处理请求报文 得到请求
+    REQUEST_STATE state = process_read();
+    // 没得到有效的请求  继续读
+    if(state == NO_REQUEST){
+        tool.epoll_mod(epollfd,sockfd,EPOLLIN,true,epoll_trigger_model == ET );
+        return ;
+    }
+    // 状态行和首部行放入写缓存  映射文件
+    bool ret = process_write(state);
+    if(!ret){
+        close_connection();
+    }
+    // 注册写事件
+    tool.epoll_mod(epollfd,sockfd,EPOLLOUT,true,epoll_trigger_model == ET );
+}
+// 从socket读取信息到读缓存  根据ET和LT选择不同的读取方式
+bool http::read_once(){
+    // 缓存区已满 直接返回
+    if(cur_rd_idx > READ_BUFFER_SIZE){
+        return false;
+    }
+    int bytes_recv = 0;
+    // ET 模式
+    if(epoll_trigger_model == ET){
+        while(true){
+            bytes_recv = recv(sockfd, read_buf+cur_rd_idx, READ_BUFFER_SIZE-cur_rd_idx, 0);
+            if(bytes_recv ==-1){
+                if(errno == EAGAIN || errno == EWOULDBLOCK){
+                    //读取完毕
+                    break;
+                }
+            } 
+            else if (bytes_recv == 0){
+                // 关闭连接
+                return false;
+            }
+            cur_rd_idx += bytes_recv;
+        }
+        return true;
+    }
+    // LT 模式
+    else if(epoll_trigger_model == LT) {
+        bytes_recv = recv(sockfd, read_buf+cur_rd_idx, READ_BUFFER_SIZE-cur_rd_idx, 0);
+        if(bytes_recv <= 0){
+            // 返回-1 出错了 0 关闭连接
+            return false;
+        }
+        cur_rd_idx += bytes_recv;
+        return true;
+    }
+}
+
 // 获取新读入数据指针
 char* http::get_line(){
     return read_buf + cur_parseline_head;
 }
-// 解析一行
+ 
+/*
+    功能：解析一行
+    实现： 从解析指针到当前缓存区末尾指针，逐个字符解析直到解析完一行
+*/
 LINE_STATE http::parse_line(){
-    for(; cur_parse_idx<cur_rd_idx; ++cur_parse_idx){
+    for(; cur_parse_idx < cur_rd_idx; ++cur_parse_idx){
         char temp = read_buf[cur_parse_idx];
-        if(temp == '\n' && cur_parse_idx ==0){
+        // 第一个元素是\n' 
+        if(temp == '\n' && cur_parse_idx == 0){
             return LINE_BAD;
         }
         if(temp == '\n' && read_buf[cur_parse_idx-1]=='\r'){
@@ -152,9 +173,9 @@ REQUEST_STATE  http::parse_requestline(char* line){
     char * method = line;
     // 忽略大小写比较  
     if(strcasecmp(method, "GET") == 0){
-        http_method = GET;
+        cur_http_methd = GET;
     } else if(strcasecmp(method, "POST") == 0){
-         http_method = POST;
+         cur_http_methd = POST;
     } else{
         return BAD_REQUEST;
     }
@@ -226,7 +247,8 @@ REQUEST_STATE http::parse_header(char* line){
 }
 // 处理POST请求内容 放入post_line 中
 REQUEST_STATE http::parse_content(char* line){
-    if(cur_rd_idx >= (cur_parse_idx+content_len) ){
+    // 这里为什么要判断？
+    if(cur_rd_idx >= (cur_parse_idx + content_len) ){
         line[content_len] = '\0';
         post_line = line;
         return GET_REQUEST;
@@ -235,6 +257,7 @@ REQUEST_STATE http::parse_content(char* line){
 }
 // 读取报文并得到请求
 REQUEST_STATE http::process_read(){
+    // 解析请求行和首部行 要先parse line  而解析正文不需要
     while( (master_state == CHECK_CONTENT && line_state == LINE_OK) || ( line_state = parse_line() ) == LINE_OK ){
         char* line = get_line();
         cur_parseline_head = cur_parse_idx;
@@ -243,7 +266,7 @@ REQUEST_STATE http::process_read(){
         {
         case CHECK_REQUESTLINE:
             REQUEST_STATE ret = parse_requestline(line);
-            if(ret==BAD_REQUEST){
+            if(ret == BAD_REQUEST){
                 return BAD_REQUEST;
             }
             break;
@@ -273,9 +296,10 @@ REQUEST_STATE http::process_read(){
 
 // 根据得到的请求内容处理 登录注册 发送文件等
 REQUEST_STATE http::do_request(){
+
     strcpy(native_request_url,workdir);
     int len = strlen(workdir);
-    printf("m_url:%s\n", request_url);
+    //printf("m_url:%s\n", request_url);
     const char* p = strrchr(request_url,'/');
     //注册页面
     if(*(p+1) == '0'){
@@ -293,6 +317,7 @@ REQUEST_STATE http::do_request(){
     }
     // 登录
     else if(*(p+1) == '2'){
+        /*
         char* tail_url  = (char*) malloc(sizeof(char)*200);
         strcpy(tail_url,"/");
         // 这里为什么要加2
@@ -300,7 +325,7 @@ REQUEST_STATE http::do_request(){
         //这里修改了
         strncpy(native_request_url,tail_url,strlen(tail_url));
         free(tail_url);
-
+        */
         std::string name; std::string password;
         // user=1234&password=123
         int idx = 5;
@@ -315,10 +340,12 @@ REQUEST_STATE http::do_request(){
             strcpy(request_url,"/welcome.html");
         } else {
             strcpy(request_url,"/logError.html");
-        } 
+        }
+        strncpy(native_request_url + len, request_url, strlen(request_url)); 
     } 
     // 注册
     else if(*(p+1) == '3'){
+        /*
         char* tail_url  = (char*) malloc(sizeof(char)*200);
         strcpy(tail_url,"/");
         // 这里为什么要加2
@@ -326,7 +353,7 @@ REQUEST_STATE http::do_request(){
         //这里修改了
         strncpy(native_request_url+len,tail_url,strlen(tail_url));
         free(tail_url);
-
+        */
         std::string name; std::string password;
         // user=1234&password=123
         int idx = 5;
@@ -359,7 +386,8 @@ REQUEST_STATE http::do_request(){
             }
         } else {
             strcpy(request_url,"/registerError.html");
-        } 
+        }
+        strncpy(native_request_url + len, request_url, strlen(request_url)); 
     }
     // 请求图片
     else if(*(p+1) == '5'){
@@ -383,17 +411,20 @@ REQUEST_STATE http::do_request(){
         free(tail_url);
     }
     // 其他情况  只有/  起始界面 和注册登录完成的界面
+    else{
         strncpy(native_request_url + len, request_url, strlen(request_url));
-
+    }
+    
+        
     int ret = stat(native_request_url,&file_stat);
     if(ret<0){
         return NO_RESOURCE;
     } 
     // 其他用户可读
-    if(!(file_stat.st_mode && S_IROTH)){
+    if( !(file_stat.st_mode && S_IROTH) ){
         return FORBIDDEN_REUQEST;
     }
-    if(S_ISDIR(file_stat.st_mode)){
+    if( S_ISDIR(file_stat.st_mode) ){
         return BAD_REQUEST;
     }
 
@@ -405,7 +436,7 @@ REQUEST_STATE http::do_request(){
 
 // 取消mmap映射
 void http::unmmap(){
-    if(mmap_addr){
+    if(mmap_addr != NULL){
         munmap(mmap_addr,file_stat.st_size);
         mmap_addr = 0; 
     }
@@ -414,13 +445,15 @@ void http::unmmap(){
 
 //按给定格式写一行内容到写缓存
 bool http::add_line(const char* format, ...){
-    if(cur_wr_idx>= write_buf_size){
+    // 缓存已满
+    if(cur_wr_idx >= WRITE_BUFFER_SIZE){
         return false;
     }
     va_list va;
     va_start(va,format);
-    int len = vsnprintf(write_buf+cur_wr_idx,write_buf_size-cur_wr_idx-1,format,va);
-    if(len >= (write_buf_size-cur_wr_idx-1) ){
+    int len = vsnprintf(write_buf+cur_wr_idx, WRITE_BUFFER_SIZE-cur_wr_idx-1, format, va);
+    // 缓存区不够
+    if(len >= (WRITE_BUFFER_SIZE-cur_wr_idx-1) ){
         va_end(va);
         return false;
     }
@@ -481,7 +514,7 @@ bool http::process_write(REQUEST_STATE state){
         break;
     case FILE_REQUEST:
         add_statusline(200,ok_200_title);
-        if(file_stat.st_size>0){
+        if(file_stat.st_size > 0){
             add_header(file_stat.st_size);
             m_iv[0].iov_base = write_buf;
             m_iv[0].iov_len = cur_wr_idx;
@@ -491,11 +524,14 @@ bool http::process_write(REQUEST_STATE state){
             bytes_to_send = cur_wr_idx + file_stat.st_size;
             return true;
         } 
+        // 空文件
         else {
             const char *ok_string = "<html><body></body></html>";
             add_header(strlen(ok_string));
             bool ret = add_content(ok_string);
-            if(!ret) return false;
+            if(!ret){
+                return false;
+            }
         }
         break;
     default:
@@ -510,18 +546,22 @@ bool http::process_write(REQUEST_STATE state){
 }
 // 写函数
 bool http::write_to_socket(){
+    // 已经写完了
     if(bytes_to_send == 0){
-        tool.epoll_mod(epoll_fd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
+        tool.epoll_mod(epollfd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
         init();
         return true;
     }
+    // 没写完 
     while(1){
         int bytes = writev(sockfd,m_iv,m_iv_cnt);
-        if(bytes<0){
+        if(bytes < 0){
             if(errno == EAGAIN){
-                tool.epoll_mod(epoll_fd, sockfd,EPOLLOUT,true,epoll_trigger_model ==ET);
+                // 缓存区满了  重置为 oneshoot的 OUT
+                tool.epoll_mod(epollfd, sockfd,EPOLLOUT,true,epoll_trigger_model ==ET);
                 return true;
             }
+            // 否则出错 
             unmmap();
             return false;
         }
@@ -539,7 +579,7 @@ bool http::write_to_socket(){
         // 发送完毕
         if(bytes_to_send<=0){
             unmmap();
-            tool.epoll_mod(epoll_fd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
+            tool.epoll_mod(epollfd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
             if(KeepAlive){
                 init();
                 return true;
@@ -554,5 +594,7 @@ bool http::isProactor(){
 }
 // 设置epollfd
 void http::set_epoll_fd(int fd){
-    epoll_fd = fd;
+    m_lock.lock();
+    epollfd = fd;
+    m_lock.unlock();
 }

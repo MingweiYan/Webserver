@@ -23,6 +23,7 @@ public:
     bool pop_front(T&);
     void clear();
     bool isFull();
+    bool empty();
 };
 
 #endif

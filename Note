@@ -1,2 +1,19 @@
 #1 webserver的工作函数，需不需要对读写状态进行区分  
 #2 list_timer 和线程池 的处理函数 需要在初始化时设置
+#3 http 没有提供读写状态变量  没有地址
+#4 http  他是用静态常数定义的读写缓存大小 我是定义的私有成员  所以他是数组  我是指针
+#5 http  很多char*  和char[] 使用的不同
+#6 http类 初始化时 需要引入  事件处理模式？
+#8 http类 processread 解析content之后 是否置位LINEOPEN要放在花括号内
+#9 http类 do_request  注册和登录部分的代码 注释一部分
+#10 addfd 需要设置非阻塞socket的地方
+#11  deal_timer  以及定义在 util的cb_func
+#12 webserver  接受连接时 ET模式 重复读 读到合适结束  且返回值存在问题
+
+
+
+
+
+
+
+yes    #7 http的linger是keepalive吗 

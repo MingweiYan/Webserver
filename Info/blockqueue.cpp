@@ -79,3 +79,11 @@ bool blockqueue<T>::isFull(){
     m_lock.unlock();
     return flag;
 }
+// 判断是否为空
+template<typename T>
+bool blockqueue<T>::empty(){
+    m_lock.lock();
+    bool flag =  ( cur_size == 0);
+    m_lock.unlock();
+    return flag;
+}

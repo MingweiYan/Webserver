@@ -1,11 +1,12 @@
 
 #include"../webserver/webserver.h"
 
+
 /*
     非成员函数
 */
 
-// 直接发送错误信息 
+// 直接发送错误信息 然后关闭连接
 void show_error(int connfd,const char* info){
     send(connfd,info,sizeof(info),0);
     close(connfd);
@@ -42,9 +43,10 @@ void http_work_func(http* conn){
 /*
     构造和析构
 */
+
 // 构造函数
 webserver::webserver(){
-    connections = new http[MAX_FD];
+    http_conns = new http[MAX_FD];
     char server_path[256];
     getcwd(server_path,sizeof(server_path));
     char root[6] = "/root"; 
@@ -59,15 +61,89 @@ webserver::~webserver(){
     close(pipefd[1]);
     close(pipefd[0]);
     free(rootPath);
-    delete timer_;
-    delete threadpoll_;
-    delete connections;
+    delete timers;
+    delete m_threadpoll;
+    delete http_conns;
+    // 释放定时器节点
+    for(int i = 0; i < MAX_FD; ++i){
+        if(to_timernode[i]){
+            delete to_timernode[i];
+        }
+    }
 }
 
 
 /*
     初始化函数
 */
+
+
+void webserver::parse_arg(std::string dbuser,std::string dbpasswd,std::string dbname, int argc , char* [] agrv){
+    int opt;
+    // 冒号表示后面有值
+    // [-p port]  [-l LOGWrite] [-m TRIGMode] [-o OPT_LINGER] [-s sql_num] [-t thread_num] [-c close_log] [-a actor_model] 
+
+    // 默认参数
+    int serverport  = 9006;  
+    bool logOpen = true;
+    bool AsynLog = false;
+    int trigmod = 1; // 0-4  LT + LT  LT + ET ET + LT ET + LT    
+    bool linger = false;
+    int sql_num = 8;
+    int thread_num = 8;
+    int actormodel = proactor;
+
+
+    const char *str = "p:v:l:m:o:s:t:c:a:";
+    while ( (opt = getopt(argc, argv, str)) != -1){
+        
+        switch (opt){
+        // 
+        case 'p':{
+            serverport = atoi(optarg);
+            break;
+        }
+        // 0 关闭 非0打开
+        case 'l':{
+            AsynLog = atoi(optarg);
+            break;
+        }
+        //
+        case 'm':{
+            trigmod = atoi(optarg);
+            break;
+        }
+        // 0 关闭 非0打开
+        case 'o':{
+            linger = atoi(optarg);
+            break;
+        }
+        //
+        case 's':{
+            sql_num = atoi(optarg);
+            break;
+        }
+        //
+        case 't':{
+            thread_num = atoi(optarg);
+            break;
+        }
+        // 0 关闭 非0打开
+        case 'c':{
+            logOpen = atoi(optarg);
+            break;
+        }
+        case 'a':{
+            actor_model = atoi(optarg);
+            break;
+        }
+        default:
+            break;
+        }
+    }
+    // 初始化
+    init(dbuser,dbpasswd,dbname,logOpen,AsynLog,server_port,linger,trigmod,sql_num,thread_num,actor_model);
+}
 
 
 // 初始化函数
@@ -84,15 +160,17 @@ void webserver::init(std::string dbusername,std::string dbpassword,std::string d
     sql_conn_size = sql_cnt;
     thread_size = thread_cnt;
     actor_model = actor_model; 
-    threadpoll_  = NULL;      
+    m_threadpoll  = NULL;      
     server_port =   servport;
-    timer_slot = 5;
+    timer_slot = TIMESLOT;
     stop_server = false;
     time_out = false;
+
+    http::init_http_static(rootPath);
 }
 // 初始化线程库
 void webserver::init_threadpoll(){
-    threadpoll_ = new threadpoll<http>(http_work_func,thread_size);
+    m_threadpoll = new threadpoll<http>(http_work_func,thread_size);
 }
 // 初始化log
 void webserver::init_log(){
@@ -108,9 +186,11 @@ void webserver::init_mysqlpoll(){
 }
 // 初始化listen
 void webserver::init_listen(){
+
+    // 创建监听socket
     listenfd = socket(PF_INET,SOCK_STREAM,0);
     assert(listenfd >= 0);
-    // 优雅关闭
+    // 优雅关闭  断开连接后 发送完数据
     if(sock_linger){
         struct linger tmp = {1, 1};
         setsockopt(listenfd, SOL_SOCKET, SO_LINGER, &tmp, sizeof(tmp));
@@ -118,33 +198,38 @@ void webserver::init_listen(){
         struct linger tmp = {0, 1};
         setsockopt(listenfd, SOL_SOCKET, SO_LINGER, &tmp, sizeof(tmp));
     }
-    // listen
     struct sockaddr_in address;
     bzero(&address,sizeof(address));
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = htonl(INADDR_ANY);
     address.sin_port = htons(server_port);
     int flag = 1;
+    // 重用端口
     setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
     int ret = bind(listenfd, (struct sockaddr *)&address, sizeof(address));
     assert(ret >= 0);
     ret = listen(listenfd, 5);
     assert(ret >= 0);
+
     // epoll
     epoll_event events[MAX_EVENT_NUMBER];
     epollfd = epoll_create(5);
     assert(epollfd != -1);
     // LT + LT  LT + ET 
     if(trigueMode == 0 || trigueMode == 1){
-        tool.epoll_add(epollfd,listenfd,false,false,false);
+        //  注册读  非oneshoot  LT  非阻塞
+        tool.epoll_add(epollfd,listenfd,true,false,false);
+        tool.setnonblocking(listenfd);
     }
     http::set_epoll_fd(epollfd);
-
+    // 创建管道
     ret = socketpair(PF_UNIX,SOCK_STREAM,0,pipefd);
     assert(ret != -1 );
     // 写非阻塞
     tool.setnonblocking(pipefd[1]);
     tool.epoll_add(epollfd,pipefd[0],true,false,false);
+    tool.setnonblocking(pipefd[0]);
+    //  设置信号
     tool.set_sigfunc(SIGPIPE,SIG_IGN,false);
     tool.set_sigfunc(SIGALRM,sig_handler,false);
     tool.set_sigfunc(SIGTERM,sig_handler,false);
@@ -161,29 +246,30 @@ void webserver::init_listen(){
 void webserver::adjust_timernode(timer_node* timer){
     time_t cur = time(NULL);
     timer->expire_time = cur + 3 * TIMESLOT;
-    timer_->adjust(timer);
+    timers->adjust(timer);
     LOG_INFO("%s%d", "adjust timer",timer->sockfd);
 }
 //在接受连接时添加一个定时器
 void webserver::add_timernode(int fd){
     // 这里有问题
-    timer_node* timer ;
+    timer_node* timer = new timer_node;
     timer->sockfd = fd;
+    timer->conn = &http_conns[fd];
     time_t cur = time(NULL);
     timer->expire_time = cur + 3 * TIMESLOT;
-    timer_->add(timer);
+    timers->add(timer);
     to_timernode[fd] = timer;
 }
 // 移除定时器节点
 void webserver::remove_timernode(int fd){
     timer_node* timer = to_timernode[fd];
-    timer_->remove(timer);
-    to_timernode.erase(fd);
+    timers->remove(timer);
+    to_timernode[fd] = NULL;
 }
 // 定时器处理
 void webserver::timer_handler(){
-    timer_->tick();
-    alarm(timer_->slot());
+    timers->tick();
+    alarm(timers->slot());
 }
 
 
@@ -198,7 +284,7 @@ bool webserver::accpet_connection(){
     // LT + LT  LT + ET  listen LT
     if(trigueMode == 0 || trigueMode == 1){
         int connfd = accept(listenfd,(sockaddr*)&client_addr,&client_addr_len);
-        if(connfd<0){
+        if(connfd < 0){
             LOG_ERROR("%s:errno is:%d", "accept connection error", errno);
             return false;
         }
@@ -209,14 +295,14 @@ bool webserver::accpet_connection(){
         }
         // LT + ET    
         if(trigueMode ==1){
-            connections[connfd].init(connfd,ET);
+            http_conns[connfd].init(connfd,ET);
         }
         else{  //  LT + LT
-            connections[connfd].init(connfd,LT);
+            http_conns[connfd].init(connfd,LT);
         }
         add_timernode(connfd);
     }
-    // ET + LT   ET + ET 
+    // ET + LT   ET + ET  listen ET
     else{
         while(true){
             int connfd = accept(listenfd,(sockaddr*)&client_addr,&client_addr_len);
@@ -229,26 +315,28 @@ bool webserver::accpet_connection(){
                 LOG_ERROR("%s", "Internal server busy");
                 break;
             }
-            add_timernode(connfd);
             //  ET + ET
             if(trigueMode ==3){
-                connections[connfd].init(connfd,ET);
+                http_conns[connfd].init(connfd,ET);
             }
             else{  //  ET + LT
-                connections[connfd].init(connfd,LT);
+                http_conns[connfd].init(connfd,LT);
             }
+            add_timernode(connfd);
         }
     }
-    
+    return true;
 }
 
 // 处理信号
 bool webserver::dealwith_signal(){
     char signals[1024];
     int ret = recv(pipefd[0], signals, sizeof(signals), 0);
+    // 出错
     if (ret == -1){
         return false;
     }
+    // 关闭
     else if (ret == 0){
         return false;
     }
@@ -268,35 +356,35 @@ bool webserver::dealwith_signal(){
 }
 // 处理读
 bool webserver::dealwith_read(int connfd){
+    // proactor
     if(actor_model == proactor){
-        bool ret = connections[connfd].read_once();
+        bool ret = http_conns[connfd].read_once();
         if(ret){
-            threadpoll_->put(connections+connfd);
+            m_threadpoll->put(http_conns+connfd);
             adjust_timernode(to_timernode[connfd]);
         }
         // 失败
         else {
-            tool.epoll_remove(epollfd,connfd);
-            close(connfd);
+            http_conns[connfd].close_connection();
         }
     }
     // reactor
     else {
-        threadpoll_->put(connections+connfd);
+        m_threadpoll->put(http_conns+connfd);
         adjust_timernode(to_timernode[connfd]);
     }
 }
 // 处理写
 bool webserver::dealwith_write(int connfd){
+    // proactor 
     if(actor_model == proactor){
-        bool ret = connections[connfd].write_to_socket();
+        bool ret = http_conns[connfd].write_to_socket();
         if(ret){
             adjust_timernode(to_timernode[connfd]);
         }
         // 失败
         else {
-            tool.epoll_remove(epollfd,connfd);
-            close(connfd);
+            http_conns[connfd].close_connection();
         }
     }
     // reactor
@@ -305,18 +393,21 @@ bool webserver::dealwith_write(int connfd){
         adjust_timernode(to_timernode[connfd]);
     }
 }
+
+
 /*
     主循环
 */
 // 循环读取时间
 void webserver::events_loop(){
     while(!stop_server){
+
         int num = epoll_wait(epollfd,events,MAX_EVENT_NUMBER,-1);
         if (num < 0 && errno != EINTR){
             LOG_ERROR("%s", "epoll failure");
             break;
         }
-
+        // 判断每一个事件
         for(int i = 0; i < num; ++i){
             int sockfd = events[i].data.fd;
             //新连接
@@ -325,8 +416,7 @@ void webserver::events_loop(){
             }
             // 错误
             else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR) ){
-                tool.epoll_remove(epollfd,sockfd);
-                close(sockfd);
+                http_conns[sockfd].close_connection();
             }
             // 信号
             else if ((sockfd == pipefd[0]) && (events[i].events & EPOLLIN)){
@@ -343,7 +433,7 @@ void webserver::events_loop(){
             }
         }
         if(time_out){
-            timer_->dealwith_alarm();
+            timers->dealwith_alarm();
             time_out = false;
         }
     }
