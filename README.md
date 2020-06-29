@@ -110,7 +110,7 @@
             void epoll_mod(int epoolfd,int fd,int event,bool one_shot,bool ET);
             // 信号相关
             void set_sigfunc(int sig,void(handler)(int), bool restrart);
-            static void sig_handler(int sig);
+        
 
 
 
@@ -203,6 +203,7 @@
             void init_threadpoll();
             void init_mysqlpoll();
             void init_listen();
+            void init_timer();
             // 定时器相关
             void adjust_timernode(timer_node*);
             void add_timernode(int fd);

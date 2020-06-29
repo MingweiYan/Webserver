@@ -49,7 +49,7 @@ template<typename T>
 bool blockqueue<T>::pop_front(T& item){
     m_lock.lock();
     while(cur_size <= 0){
-        bool ret = m_cond.wait(&m_lock);
+        bool ret = m_cond.wait(m_lock.get());
         // 条件变量出错
         if(!ret){
             return false;

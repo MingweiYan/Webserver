@@ -11,7 +11,7 @@
 #include <sys/types.h>
 #include <getopt.h>
 
-#include"../Info/info.h"
+#include"../info/info.h"
 #include"../threadpoll/threadpool.h"
 #include"../mysqlpoll/mysqlpoll.h"
 #include"../timer/http_timer.h"
@@ -76,6 +76,7 @@ public:
     void init_log();
     void init_threadpoll();
     void init_mysqlpoll();
+    void init_timer();
     void init_listen();
     // 定时器相关
     void add_timernode(int fd);
@@ -92,7 +93,15 @@ public:
 
 };
 
-void sig_handler(int sig, int pipefd);
+/*
+    非成员函数
+
+*/
+void sig_handler(int sig);
 void show_error(int connfd,const char* info);
+void http_work_func(http* conn);
+void timeout_handler(timer_node* node);
+void init_static_member();
+
 
 #endif

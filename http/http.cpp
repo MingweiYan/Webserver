@@ -1,6 +1,28 @@
 
 #include"../http/http.h"
 
+
+
+const char *ok_200_title = "OK";
+const char *error_400_title = "Bad Request";
+const char *error_400_form = "Your request has bad syntax or is inherently impossible to staisfy.\n";
+const char *error_403_title = "Forbidden";
+const char *error_403_form = "You do not have permission to get file form this server.\n";
+const char *error_404_title = "Not Found";
+const char *error_404_form = "The requested file was not found on this server.\n";
+const char *error_500_title = "Internal Error";
+const char *error_500_form = "There was an unusual problem serving the request file.\n";
+
+// 定义并行处理模式
+const int reactor = 0;
+const int proactor = 1;
+// 定义EPOLL触发模式
+const int ET = 0;
+const int LT = 1;
+
+
+
+
 // 从Mysql中获取用户登录信息
 // 初始化静态变量
 void init_http_static(char* root){
@@ -8,6 +30,9 @@ void init_http_static(char* root){
     http::cur_user_cnt = 0;
     http::workdir = root;
     http::epollfd = 0;
+    http::m_lock = locker();
+    http::tool = tools();
+    http::users = std::unordered_map<std::string,std::string>();
 
     //先从连接池中取一个连接
     mysqlconnection mysqlcon;
@@ -26,7 +51,7 @@ void init_http_static(char* root){
     while (MYSQL_ROW row = mysql_fetch_row(result)){
         std::string temp1(row[0]);
         std::string temp2(row[1]);
-        users[temp1] = temp2;
+        http::users[temp1] = temp2;
     }
 }
 //初始化函数
@@ -35,6 +60,7 @@ void http::init(int sockfd,int TriggerMode){
     epoll_trigger_model = TriggerMode;
     // 添加到epoll
     tool.epoll_add(epollfd,sockfd,true,true,epoll_trigger_model == ET);
+    tool.setnonblocking(sockfd);
     init();
     m_lock.lock();
     ++cur_user_cnt;
@@ -44,7 +70,7 @@ void http::init(){
 
     memset(read_buf,'\0',READ_BUFFER_SIZE);
     memset(write_buf,'\0',WRITE_BUFFER_SIZE);
-    memset(native_request_url,'\0',file_name_len);
+    memset(native_request_url,'\0',FILE_NAME_LEN);
 
     cur_wr_idx = 0;
     cur_rd_idx = 0;
@@ -55,7 +81,7 @@ void http::init(){
     bytes_have_send = 0;
 
     master_state = CHECK_REQUESTLINE;
-    cur_http_methd  = GET;
+    cur_http_method  = GET;
     line_state = LINE_OPEN;
 
     KeepAlive = false;
@@ -173,9 +199,9 @@ REQUEST_STATE  http::parse_requestline(char* line){
     char * method = line;
     // 忽略大小写比较  
     if(strcasecmp(method, "GET") == 0){
-        cur_http_methd = GET;
+        cur_http_method = GET;
     } else if(strcasecmp(method, "POST") == 0){
-         cur_http_methd = POST;
+         cur_http_method = POST;
     } else{
         return BAD_REQUEST;
     }
@@ -262,16 +288,17 @@ REQUEST_STATE http::process_read(){
         char* line = get_line();
         cur_parseline_head = cur_parse_idx;
         LOG_INFO("%s", line);
+        REQUEST_STATE  ret;
         switch (master_state)
         {
         case CHECK_REQUESTLINE:
-            REQUEST_STATE ret = parse_requestline(line);
+            ret = parse_requestline(line);
             if(ret == BAD_REQUEST){
                 return BAD_REQUEST;
             }
             break;
         case CHECK_HEADER:
-            REQUEST_STATE ret = parse_header(line);
+            ret = parse_header(line);
             if(ret == BAD_REQUEST){
                 return BAD_REQUEST;
             } 
@@ -280,7 +307,7 @@ REQUEST_STATE http::process_read(){
             }
             break;
         case CHECK_CONTENT:
-            REQUEST_STATE ret = parse_content(line);
+            ret = parse_content(line);
             if(ret == GET_REQUEST){
                 return do_request();
             }
@@ -492,24 +519,25 @@ bool http::add_content(const char* content){
 }
 // 处理写
 bool http::process_write(REQUEST_STATE state){
+    bool ret;
     switch (state)
     {
     case INTERNAL_ERROR:
         add_statusline(500,error_500_title);
         add_header(strlen(error_500_form));
-        bool ret = add_content(error_500_form);
+        ret = add_content(error_500_form);
         if(!ret) return false;
         break;
     case BAD_REQUEST:
         add_statusline(404,error_404_title);
         add_header(strlen(error_404_form));
-        bool ret = add_content(error_404_form);
+        ret = add_content(error_404_form);
         if(!ret) return false;
         break;
     case FORBIDDEN_REUQEST:
         add_statusline(403,error_403_title);
         add_header(strlen(error_403_form));
-        bool ret = add_content(error_403_form);
+        ret = add_content(error_403_form);
         if(!ret) return false;
         break;
     case FILE_REQUEST:

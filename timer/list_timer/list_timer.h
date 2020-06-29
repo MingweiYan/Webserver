@@ -17,6 +17,7 @@ private:
 public:
     list_timer();
     list_timer(int slot);
+    ~list_timer();
 
     void add(timer_node* timer);
     void remove(timer_node* timer);

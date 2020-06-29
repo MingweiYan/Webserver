@@ -66,9 +66,4 @@ void tools::set_sigfunc(int sig,void(handler)(int), bool restrart){
     int ret = sigaction(sig,&sa,NULL);
     assert(ret!=-1);
 }
-// 信号处理函数
-void sig_handler(int sig){
-    int pre_erro = errno;
-    send(pipefd[1],(char*)sig,1,0);
-    errno = pre_erro;
-}
+

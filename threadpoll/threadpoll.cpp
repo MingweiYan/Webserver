@@ -8,7 +8,7 @@
 
 // 构造函数
 template<typename T>
-threadpoll<T>::threadpoll(std::function<void (T*)> func,int thread_poll_size,int work_list_size = 10000)
+threadpoll<T>::threadpoll(std::function<void (T*)> func,int thread_poll_size,int work_list_size)
 : thread_poll_size(thread_poll_size),max_work_size(work_list_size),cur_work_size(0),work_func(func){
 
     if(work_list_size<=0 || thread_poll_size<=0){
@@ -47,7 +47,7 @@ threadpoll<T>::~threadpoll(){
 //线程初始化函数 
 template<typename T>
 void* threadpoll<T>::thread_init_func(void* arg){
-    threadpoll* curpoll = (threadpoll*)this;
+    threadpoll* curpoll = (threadpoll*)arg;
     curpoll->thread_run_func();
     return curpoll;
 }
@@ -71,13 +71,13 @@ void threadpoll<T>::set_work_fun(std::function<void (T*)> func){
 template<typename T>
 bool threadpoll<T>::put(T* work){
     m_lock.lock();
-    if(cur_work_size>=max_work_size){
+    if(cur_work_size >= max_work_size){
         m_lock.unlock();
         return false;
     }
     work_list.push_back(work);
     ++cur_work_size;
-    m_lock.unlock;
+    m_lock.unlock();
     m_sem.post();
     return true;
 }

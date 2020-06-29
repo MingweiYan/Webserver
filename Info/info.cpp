@@ -61,7 +61,7 @@ bool info::init(bool LogOpen,std::string file_name,int max_file_line_perfile,int
     const char *p = strrchr(file_name.c_str(), '/');
     if (p == NULL) {
         // 如果未找到
-        snprintf(log_full_name, 255, "%d_%02d_%02d_%s", now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, file_name);
+        snprintf(log_full_name, 255, "%d_%02d_%02d_%s", now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, file_name.c_str());
     }
     else{
         // +1 去除 / 得到文件名

@@ -1,7 +1,7 @@
+#include<string>
 #include"./webserver/webserver.h"
 
-
-int main(int argc,char*[] argv){
+int main(int argc,char** argv){
     std::string dbuser = "root";
     std::string dbpasswd = "123";
     std::string dbname = "mydb";

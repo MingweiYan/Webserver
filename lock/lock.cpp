@@ -25,17 +25,21 @@ bool locker::unlock(){
     return ret == 0;
 }
 
+pthread_mutex_t* locker::get(){
+    return &m_mutex;
+} 
+
 /*
     sem
 */
 sem::sem(){
-    if(sem_init(&m_sem,NULL,0)!=0){
+    if(sem_init(&m_sem,0,0)!=0){
         throw std::exception();
     }
 }
 sem::sem(int i){
     if(i<0) throw std::exception();
-    if(sem_init(&m_sem,NULL,i)!=0){
+    if(sem_init(&m_sem,0,i)!=0){
         throw std::exception();
     }
 }

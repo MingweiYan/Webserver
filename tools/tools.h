@@ -14,7 +14,7 @@
 class tools{
 
 private:
-    static int pipefd[2];
+    
 
 public:
     // epoll相关
@@ -24,7 +24,7 @@ public:
     void epoll_mod(int epoolfd,int fd,int event,bool one_shot,bool ET);
     // 信号相关
     void set_sigfunc(int sig,void(handler)(int), bool restrart);
-    static void sig_handler(int sig);
+    static int pipefd[2];
 
 };
 

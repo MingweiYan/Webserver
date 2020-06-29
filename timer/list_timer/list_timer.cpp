@@ -5,6 +5,7 @@
 #include"../../timer/http_timer.h"
 #include"../list_timer/list_timer.h"
 
+
 /*
     构造和析构
 */
@@ -27,7 +28,7 @@ void list_timer::add(timer_node* timer){
     }
     m_lock.lock();
     // 找到第一个大于等于
-    auto iter = std::upper_bound(timer_list.begin(),timer_list.end(),timer->expire_time,
+    auto iter = std::upper_bound(timer_list.begin(),timer_list.end(),timer,
         [](timer_node* left,timer_node* right){return left->expire_time < right->expire_time;});
     auto pos = timer_list.insert(iter,timer);
     toIter[timer->sockfd] = pos;

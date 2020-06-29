@@ -11,8 +11,8 @@ void show_error(int connfd,const char* info){
     send(connfd,info,sizeof(info),0);
     close(connfd);
 }
-// 定时器定时处理函数
-void timer_handler(timer_node* node){
+// 定时器超时处理函数
+void timeout_handler(timer_node* node){
     node->conn->close_connection();
 }
 
@@ -39,6 +39,14 @@ void http_work_func(http* conn){
         conn->process();
     }
 }
+
+// 信号处理函数
+void sig_handler(int sig){
+    int pre_erro = errno;
+    send(tools::pipefd[1],(char*)sig,1,0);
+    errno = pre_erro;
+}
+
 
 /*
     构造和析构
@@ -78,7 +86,7 @@ webserver::~webserver(){
 */
 
 
-void webserver::parse_arg(std::string dbuser,std::string dbpasswd,std::string dbname, int argc , char* [] agrv){
+void webserver::parse_arg(std::string dbuser,std::string dbpasswd,std::string dbname, int argc , char** argv){
     int opt;
     // 冒号表示后面有值
     // [-p port]  [-l LOGWrite] [-m TRIGMode] [-o OPT_LINGER] [-s sql_num] [-t thread_num] [-c close_log] [-a actor_model] 
@@ -166,11 +174,11 @@ void webserver::init(std::string dbusername,std::string dbpassword,std::string d
     stop_server = false;
     time_out = false;
 
-    http::init_http_static(rootPath);
+    init_http_static(rootPath);
 }
 // 初始化线程库
 void webserver::init_threadpoll(){
-    m_threadpoll = new threadpoll<http>(http_work_func,thread_size);
+    m_threadpoll = new threadpoll<http>(http_work_func,thread_size,10000);
 }
 // 初始化log
 void webserver::init_log(){
@@ -221,9 +229,14 @@ void webserver::init_listen(){
         tool.epoll_add(epollfd,listenfd,true,false,false);
         tool.setnonblocking(listenfd);
     }
+
     http::set_epoll_fd(epollfd);
     // 创建管道
     ret = socketpair(PF_UNIX,SOCK_STREAM,0,pipefd);
+
+    tools::pipefd[0] = pipefd[0];
+    tools::pipefd[1] = pipefd[1];
+
     assert(ret != -1 );
     // 写非阻塞
     tool.setnonblocking(pipefd[1]);
@@ -235,6 +248,11 @@ void webserver::init_listen(){
     tool.set_sigfunc(SIGTERM,sig_handler,false);
     alarm(timer_slot);
 } 
+// 初始化定时器
+void webserver::init_timer(){
+    timers = new list_timer(TIMESLOT);
+    timers->setfunc(timeout_handler);
+}
 
 
 /*

@@ -17,7 +17,7 @@ class threadpoll{
 private:
     // 线程池中的任务
     int max_work_size;
-    int cur_thread_size;
+    int cur_work_size;
     std::list<T*> work_list;
     // 线程同步
     locker m_lock;

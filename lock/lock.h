@@ -13,6 +13,8 @@ public:
     ~locker();
     bool lock();
     bool unlock();
+    pthread_mutex_t* get();
+    
 private:
     pthread_mutex_t m_mutex;
 };
