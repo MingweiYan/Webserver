@@ -4,6 +4,9 @@
 #include<functional>
 #include<list>
 #include<unordered_map>
+#include<algorithm>
+#include<numeric>
+
 #include"../../timer/http_timer.h"
 #include"../../lock/lock.h"
 

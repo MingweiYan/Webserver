@@ -1,9 +1,6 @@
-#include<list>
-#include<string>
-#include<mysql/mysql.h>
-#include"../lock/lock.h"
+
 #include"../mysqlpoll/mysqlpoll.h"
-#include"../info/info.h"
+
 
 /*
     mysql连接池实现

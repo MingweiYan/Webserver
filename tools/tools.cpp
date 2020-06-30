@@ -1,16 +1,7 @@
-#include <fcntl.h>
-#include <sys/epoll.h>
-#include <errno.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <string.h>
-#include<assert.h>
 
 #include"../tools/tools.h"
 
-
+int tools::pipefd[2] = {0,0};
 
 // 设置文件描述符非阻塞
 int tools::setnonblocking(int fd){

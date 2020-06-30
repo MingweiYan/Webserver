@@ -9,7 +9,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/socket.h>
-# include <string.h>
+#include <string.h>
+#include<assert.h>
 
 class tools{
 
@@ -27,6 +28,8 @@ public:
     static int pipefd[2];
 
 };
+
+
 
 
 #endif

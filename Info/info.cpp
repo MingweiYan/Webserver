@@ -1,11 +1,4 @@
-#include<time.h>
-#include <sys/time.h>
-#include<string>
-#include <unistd.h>
-#include <stdarg.h>
-#include<memory.h>
-#include"../lock/lock.h"
-#include"../info/blockqueue.h"
+
 #include"../info/info.h"
 
 

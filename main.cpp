@@ -1,6 +1,10 @@
 #include<string>
 #include"./webserver/webserver.h"
 
+
+
+
+
 int main(int argc,char** argv){
     std::string dbuser = "root";
     std::string dbpasswd = "123";
@@ -9,6 +13,9 @@ int main(int argc,char** argv){
     webserver  server;
     server.parse_arg(dbuser,dbpasswd,dbname,argc,argv);
 
+    tools::pipefd[0] = 0;
+    tools::pipefd[1] = 0;
+    
     server.init_log();
     server.init_mysqlpoll();
     server.init_threadpoll();

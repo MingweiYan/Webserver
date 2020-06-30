@@ -1,8 +1,4 @@
-#include<functional>
-#include<unordered_map>
-#include<algorithm>
-#include<numeric>
-#include"../../timer/http_timer.h"
+
 #include"../list_timer/list_timer.h"
 
 
@@ -11,9 +7,9 @@
 */
 
 // 构造函数
-list_timer::list_timer(){}
-list_timer::list_timer(int slot)
-:timer(slot){}
+list_timer::list_timer(){timer();}
+list_timer::list_timer(int slot) :timer(slot){}
+list_timer::~list_timer(){}
 
 
 /*

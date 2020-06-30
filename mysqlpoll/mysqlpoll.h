@@ -4,7 +4,9 @@
 #include<list>
 #include<string>
 #include<mysql/mysql.h>
+
 #include"../lock/lock.h"
+#include"../info/info.h"
 
 /*
     mysqlpoll  mysql池
@@ -25,8 +27,9 @@ private:
     std::string dbpasswd;
     std::string dbname; 
     // 构造函数
-    mysqlpoll();
+    
 public:
+    mysqlpoll(){};
     ~mysqlpoll();
     static mysqlpoll* getInstance();
     MYSQL* get_connection();

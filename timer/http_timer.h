@@ -28,15 +28,22 @@ private:
     std::function<void(timer_node*)> func;
 
 public:
-    timer(){timer_slot = 5;};
+    timer(){
+        timer_slot = 5;
+    };
     timer(int slot):timer_slot(slot){};
-    virtual ~timer();
-    void set_slot(int i) {timer_slot = i;}
-    virtual void add(timer_node*) ;
-    virtual void remove(timer_node *) ;
-    virtual void adjust(timer_node*);
-    virtual void tick() ;
-    void dealwith_alarm(){ tick(); alarm(timer_slot);}
+    virtual ~timer(){};
+    void set_slot(int i) {
+        timer_slot = i;
+    }
+    virtual void add(timer_node*) {};
+    virtual void remove(timer_node *) {};
+    virtual void adjust(timer_node*){};
+    virtual void tick() {};
+    void dealwith_alarm(){
+         tick(); 
+         alarm(timer_slot);
+    }
     int slot(){
         return timer_slot;
     }

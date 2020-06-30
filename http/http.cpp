@@ -21,19 +21,23 @@ const int ET = 0;
 const int LT = 1;
 
 
+int http::cur_user_cnt = 0;
+char* http::workdir = NULL;
+int http::epollfd = 0;
+locker http::http::m_lock = locker();
+tools http::tool = tools();
+std::unordered_map<std::string,std::string> http::users = std::unordered_map<std::string,std::string>();
+
+
+
 
 
 // 从Mysql中获取用户登录信息
 // 初始化静态变量
 void init_http_static(char* root){
 
-    http::cur_user_cnt = 0;
     http::workdir = root;
-    http::epollfd = 0;
-    http::m_lock = locker();
-    http::tool = tools();
-    http::users = std::unordered_map<std::string,std::string>();
-
+    
     //先从连接池中取一个连接
     mysqlconnection mysqlcon;
     MYSQL *mysql = mysqlcon.get_mysql();
@@ -59,12 +63,12 @@ void http::init(int sockfd,int TriggerMode){
     sockfd = sockfd;
     epoll_trigger_model = TriggerMode;
     // 添加到epoll
-    tool.epoll_add(epollfd,sockfd,true,true,epoll_trigger_model == ET);
-    tool.setnonblocking(sockfd);
+    http::tool.epoll_add(http::epollfd,sockfd,true,true,epoll_trigger_model == ET);
+    http::tool.setnonblocking(sockfd);
     init();
-    m_lock.lock();
-    ++cur_user_cnt;
-    m_lock.unlock(); 
+    http::m_lock.lock();
+    ++http::cur_user_cnt;
+    http::m_lock.unlock(); 
 }
 void http::init(){
 
@@ -93,12 +97,12 @@ void http::init(){
 
 // 关闭连接
 void http::close_connection(){
-    tool.epoll_remove(epollfd,sockfd);
+    http::tool.epoll_remove(http::epollfd,sockfd);
     close(sockfd);
     sockfd = -1;
-    m_lock.lock();
-    --cur_user_cnt;
-    m_lock.unlock(); 
+    http::m_lock.lock();
+    --http::cur_user_cnt;
+    http::m_lock.unlock(); 
 }
 // http的工作函数
 void http_work_fun(http* http_conn){
@@ -113,7 +117,7 @@ void http::process(){
     REQUEST_STATE state = process_read();
     // 没得到有效的请求  继续读
     if(state == NO_REQUEST){
-        tool.epoll_mod(epollfd,sockfd,EPOLLIN,true,epoll_trigger_model == ET );
+        http::tool.epoll_mod(http::epollfd,sockfd,EPOLLIN,true,epoll_trigger_model == ET );
         return ;
     }
     // 状态行和首部行放入写缓存  映射文件
@@ -122,7 +126,7 @@ void http::process(){
         close_connection();
     }
     // 注册写事件
-    tool.epoll_mod(epollfd,sockfd,EPOLLOUT,true,epoll_trigger_model == ET );
+    http::tool.epoll_mod(http::epollfd,sockfd,EPOLLOUT,true,epoll_trigger_model == ET );
 }
 // 从socket读取信息到读缓存  根据ET和LT选择不同的读取方式
 bool http::read_once(){
@@ -363,7 +367,7 @@ REQUEST_STATE http::do_request(){
         for(; post_line[idx]!='\0'; ++idx){
             password += post_line[idx];
         }
-        if(users.count(name) && users[name] == password){
+        if( http::users.count(name) &&  http::users[name] == password){
             strcpy(request_url,"/welcome.html");
         } else {
             strcpy(request_url,"/logError.html");
@@ -401,11 +405,11 @@ REQUEST_STATE http::do_request(){
         mysqlconnection instance;
         MYSQL* mysqlconn = instance.get_mysql() ;
 
-        if(!users.count(name)){
-            m_lock.lock();
+        if(! http::users.count(name)){
+            http::m_lock.lock();
             int res = mysql_query(mysqlconn,sql_insert.c_str());
-            users.insert({name,password});
-            m_lock.unlock();
+            http::users .insert({name,password});
+            http::m_lock.unlock();
             if(res==0){
                 strcpy(request_url,"/log.html");
             } else {
@@ -576,7 +580,7 @@ bool http::process_write(REQUEST_STATE state){
 bool http::write_to_socket(){
     // 已经写完了
     if(bytes_to_send == 0){
-        tool.epoll_mod(epollfd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
+        http::tool.epoll_mod(http::epollfd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
         init();
         return true;
     }
@@ -586,7 +590,7 @@ bool http::write_to_socket(){
         if(bytes < 0){
             if(errno == EAGAIN){
                 // 缓存区满了  重置为 oneshoot的 OUT
-                tool.epoll_mod(epollfd, sockfd,EPOLLOUT,true,epoll_trigger_model ==ET);
+                http::tool.epoll_mod(http::epollfd, sockfd,EPOLLOUT,true,epoll_trigger_model ==ET);
                 return true;
             }
             // 否则出错 
@@ -607,7 +611,7 @@ bool http::write_to_socket(){
         // 发送完毕
         if(bytes_to_send<=0){
             unmmap();
-            tool.epoll_mod(epollfd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
+            http::tool.epoll_mod(http::epollfd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
             if(KeepAlive){
                 init();
                 return true;
@@ -622,7 +626,7 @@ bool http::isProactor(){
 }
 // 设置epollfd
 void http::set_epoll_fd(int fd){
-    m_lock.lock();
-    epollfd = fd;
-    m_lock.unlock();
+    http::m_lock.lock();
+    http::epollfd = fd;
+    http::m_lock.unlock();
 }

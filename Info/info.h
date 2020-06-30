@@ -3,6 +3,11 @@
 
 #include<time.h>
 #include<string>
+#include <sys/time.h>
+#include <unistd.h>
+#include <stdarg.h>
+#include<memory.h>
+
 #include"../lock/lock.h"
 #include"../info/blockqueue.h"
 

@@ -64,6 +64,7 @@ webserver::webserver(){
 }
 // 析构函数
 webserver::~webserver(){
+    
     close(epollfd);
     close(listenfd);
     close(pipefd[1]);
@@ -175,10 +176,11 @@ void webserver::init(std::string dbusername,std::string dbpassword,std::string d
     time_out = false;
 
     init_http_static(rootPath);
+
 }
 // 初始化线程库
 void webserver::init_threadpoll(){
-    m_threadpoll = new threadpoll<http>(http_work_func,thread_size,10000);
+    m_threadpoll = new threadpoll<http>(std::function<void(http*)>(http_work_func),thread_size,10000);
 }
 // 初始化log
 void webserver::init_log(){

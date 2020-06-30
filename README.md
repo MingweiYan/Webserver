@@ -1,13 +1,32 @@
-# Webserver
 
-# lock 文件夹
+# 依赖关系
+
+    g++ 中  A依赖B  A应该在B左边
+
+    blockqueue 依赖  lock
+    info  依赖  blockqueue  lock
+    mysqlpoll  依赖  info  和 lock
+    threadpoll 依赖 info 和lock
+    list_timer 依赖于lock 和 http
+    http 依赖 info  mysql 和 tool
+    webserver 依赖 所有
+
+    tool  和 lock 不依赖
+
+    webserver list_timer http mysqlpoll threadpoll info blockqueue tool lock 
+
+
+
+#  具体实现
+
+## lock 文件夹
 
     1. throw 异常
         throw 抛出异常 std::exception() 显示std::exception() 会终止函数运行
         try 运行一个可能抛出异常的函数  catch (){}  可以定义自己的异常类 继承std::exception 然后定义what（）函数返回想输出的字符串 
         在catch里 写自己的异常类对象  然后 通过 对象的what函数输出字符串
 
-# info 文件夹
+## info 文件夹
 
     blockqueue类
 
@@ -53,7 +72,7 @@
             bool isLogOpen();
 
 
-# mysqlpoll文件夹
+## mysqlpoll文件夹
 
     mysqlpoll类
 
@@ -77,7 +96,7 @@
             MYSQL* get_mysql();
 
 
-# threadpoll文件夹
+## threadpoll文件夹
 
     threadpoll类
 
@@ -88,6 +107,7 @@
         API：
             void thread_run_func();
             void set_work_fun(std::function<void (T*)> func);
+            static void* thread_init_func(void* arg)
             threadpoll(std::function<void (T*)> func,int thread_poll_size,int work_list_size);
             ~threadpoll();
             bool get(T* work);  // list是空的 失败
@@ -96,7 +116,7 @@
 
 
 
-# tools文件夹
+## tools文件夹
 
     tools类
 
@@ -114,7 +134,7 @@
 
 
 
-# timer文件夹
+## timer文件夹
 
     timer_node 包含expire_time  sockfd  和 http* 对象
 
@@ -142,7 +162,7 @@
 
 
 
-# http文件夹
+## http文件夹
 
     http类
 
@@ -191,7 +211,7 @@
 
 
 
-# webserver文件夹
+## webserver文件夹
 
     webserver类
 
