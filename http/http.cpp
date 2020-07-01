@@ -34,10 +34,10 @@ std::unordered_map<std::string,std::string> http::users = std::unordered_map<std
 
 // 从Mysql中获取用户登录信息
 // 初始化静态变量
-void init_http_static(char* root){
+void init_http_static(char* rootPath_){
 
-    http::workdir = root;
-    
+    http::workdir = rootPath_;
+   
     //先从连接池中取一个连接
     mysqlconnection mysqlcon;
     MYSQL *mysql = mysqlcon.get_mysql();
@@ -57,11 +57,12 @@ void init_http_static(char* root){
         std::string temp2(row[1]);
         http::users[temp1] = temp2;
     }
+    
 }
 //初始化函数
-void http::init(int sockfd,int TriggerMode){
-    sockfd = sockfd;
-    epoll_trigger_model = TriggerMode;
+void http::init(int sockfd_,int TriggerMode_){
+    sockfd = sockfd_;
+    epoll_trigger_model = TriggerMode_;
     // 添加到epoll
     http::tool.epoll_add(http::epollfd,sockfd,true,true,epoll_trigger_model == ET);
     http::tool.setnonblocking(sockfd);

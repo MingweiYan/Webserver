@@ -4,6 +4,7 @@
 #include<list>
 #include<string>
 #include<mysql/mysql.h>
+#include<iostream>
 
 #include"../lock/lock.h"
 #include"../info/info.h"

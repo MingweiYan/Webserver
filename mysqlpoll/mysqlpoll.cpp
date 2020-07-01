@@ -32,7 +32,8 @@ void mysqlpoll::init(std::string host,std::string username,std::string passwd,in
             LOG_ERROR("MySQL inital error")
             exit(1);
         }
-        con = mysql_real_connect(con,dbhost.c_str(),dbname.c_str(),dbpasswd.c_str(),dbname.c_str(),dbport,NULL,0);
+        con = mysql_real_connect(con,dbhost.c_str(),dbusername.c_str(),dbpasswd.c_str(),dbname.c_str(),dbport,NULL,0);
+        //LOG_INFO("%s_%s_%s_%s_%d",dbhost.c_str(),dbusername.c_str(),dbpasswd.c_str(),dbname.c_str(),dbport)
         if(con == NULL){
             LOG_ERROR("MySQL connection error")
             exit(1);

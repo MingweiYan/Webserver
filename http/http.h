@@ -163,6 +163,6 @@ public:
     非成员函数
 */
 
-void init_http_static(char* root);
+void init_http_static(char* );
 
 #endif

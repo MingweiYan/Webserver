@@ -102,7 +102,6 @@ void webserver::parse_arg(std::string dbuser,std::string dbpasswd,std::string db
     int thread_num = 8;
     int actormodel = proactor;
 
-
     const char *str = "p:v:l:m:o:s:t:c:a:";
     while ( (opt = getopt(argc, argv, str)) != -1){
         
@@ -150,37 +149,36 @@ void webserver::parse_arg(std::string dbuser,std::string dbpasswd,std::string db
             break;
         }
     }
+    
     // 初始化
     init(dbuser,dbpasswd,dbname,logOpen,AsynLog,server_port,linger,trigmod,sql_num,thread_num,actor_model);
 }
 
 
 // 初始化函数
-void webserver::init(std::string dbusername,std::string dbpassword,std::string dbname,bool useLog,bool logAsyn,
-            int servport,bool linger, int trigue_mode,int sql_cnt,int thread_cnt,int actor_model){
-    dbusername = dbusername;
-    dbpassword = dbpassword;
+void webserver::init(std::string dbusername_,std::string dbpassword_,std::string dbname_,bool useLog,bool logAsyn,
+            int servport,bool linger, int trigue_mode_,int sql_cnt,int thread_cnt,int actor_model_){
+    dbusername = dbusername_;
+    dbpassword = dbpassword_;
     dbport = 3306;
-    dbname = dbname;
+    dbname = dbname_;
     LogOpen = useLog;
     LogAsynWrite = logAsyn;
     sock_linger = linger;
-    trigue_mode = trigue_mode;
+    trigueMode = trigue_mode_;
     sql_conn_size = sql_cnt;
     thread_size = thread_cnt;
-    actor_model = actor_model; 
+    actor_model = actor_model_; 
     m_threadpoll  = NULL;      
-    server_port =   servport;
+    server_port =  servport;
     timer_slot = TIMESLOT;
     stop_server = false;
     time_out = false;
-
-    init_http_static(rootPath);
-
 }
 // 初始化线程库
 void webserver::init_threadpoll(){
     m_threadpoll = new threadpoll<http>(std::function<void(http*)>(http_work_func),thread_size,10000);
+    LOG_INFO("initialize threadpoll function");  
 }
 // 初始化log
 void webserver::init_log(){
@@ -188,14 +186,23 @@ void webserver::init_log(){
         info::getInstance()->init(LogOpen,"./ServerLog",800000,2000,800);
     } else{
         info::getInstance()->init(LogOpen,"./ServerLog",800000,2000,0);
-    }   
+    }
+    LOG_INFO("initialize log function");   
 }
 // 初始化mysql 
 void webserver::init_mysqlpoll(){
     mysqlpoll::getInstance()->init("localhost",dbusername,dbpassword,dbport,dbname,sql_conn_size);
+    LOG_INFO("initialize mysqlpoll function");  
 }
+
+
 // 初始化listen
 void webserver::init_listen(){
+
+    //初始化http静态变量
+    init_http_static(rootPath);
+
+    LOG_INFO("load user account and password from database")
 
     // 创建监听socket
     listenfd = socket(PF_INET,SOCK_STREAM,0);
@@ -213,16 +220,18 @@ void webserver::init_listen(){
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = htonl(INADDR_ANY);
     address.sin_port = htons(server_port);
-    int flag = 1;
+    
     // 重用端口
+    int flag = 1;
     setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
     int ret = bind(listenfd, (struct sockaddr *)&address, sizeof(address));
     assert(ret >= 0);
     ret = listen(listenfd, 5);
     assert(ret >= 0);
 
+    LOG_INFO("initialize listen socket")
+
     // epoll
-    epoll_event events[MAX_EVENT_NUMBER];
     epollfd = epoll_create(5);
     assert(epollfd != -1);
     // LT + LT  LT + ET 
@@ -230,9 +239,16 @@ void webserver::init_listen(){
         //  注册读  非oneshoot  LT  非阻塞
         tool.epoll_add(epollfd,listenfd,true,false,false);
         tool.setnonblocking(listenfd);
+    } // ET + LT  ET + ET
+    else{
+        tool.epoll_add(epollfd,listenfd,true,false,true);
+        tool.setnonblocking(listenfd);
     }
 
     http::set_epoll_fd(epollfd);
+
+    LOG_INFO("initialize epoll fd")
+
     // 创建管道
     ret = socketpair(PF_UNIX,SOCK_STREAM,0,pipefd);
 
@@ -249,11 +265,14 @@ void webserver::init_listen(){
     tool.set_sigfunc(SIGALRM,sig_handler,false);
     tool.set_sigfunc(SIGTERM,sig_handler,false);
     alarm(timer_slot);
+
+    LOG_INFO("initialize pipe and signal")
 } 
 // 初始化定时器
 void webserver::init_timer(){
     timers = new list_timer(TIMESLOT);
     timers->setfunc(timeout_handler);
+    LOG_INFO("initialize timer")
 }
 
 
@@ -427,33 +446,44 @@ void webserver::events_loop(){
             LOG_ERROR("%s", "epoll failure");
             break;
         }
+
+        LOG_INFO("%s%d%s","Epoll wait totally ",num," events trigger")
+
         // 判断每一个事件
         for(int i = 0; i < num; ++i){
+
             int sockfd = events[i].data.fd;
             //新连接
             if(sockfd == listenfd){
+                LOG_INFO("receive a  new conncetion")
                 accpet_connection();
             }
             // 错误
             else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR) ){
+                LOG_INFO("connection rd hup or error")
+                remove_timernode(sockfd);
                 http_conns[sockfd].close_connection();
             }
             // 信号
-            else if ((sockfd == pipefd[0]) && (events[i].events & EPOLLIN)){
+            else if ( (sockfd == pipefd[0]) && (events[i].events & EPOLLIN) ){
+                LOG_INFO("signal from pipe")
                 bool ret = dealwith_signal();
                 if(!ret){
                     LOG_ERROR("%s", "dealsignal failure");
                 }
             }
             else if (events[i].events & EPOLLIN){
+                LOG_INFO("read event")
                 dealwith_read(sockfd);
             }
             else if (events[i].events & EPOLLOUT){
+                 LOG_INFO("write event")
                 dealwith_write(sockfd);
             }
         }
         if(time_out){
             timers->dealwith_alarm();
+            LOG_INFO("%s", "deal with timeout");
             time_out = false;
         }
     }

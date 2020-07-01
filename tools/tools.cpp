@@ -17,6 +17,7 @@ void tools::epoll_add(int epollfd, int fd,bool read,bool one_shot,bool ET){
     if(read){
         event.events  = EPOLLIN | EPOLLRDHUP;
     } else {
+        // 这里写 是否要加入 RDHUP
         event.events = EPOLLOUT ;
     }
     if(one_shot){

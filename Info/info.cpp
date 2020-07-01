@@ -24,9 +24,9 @@ info::~info(){
     }
 }
 // 初始化
-bool info::init(bool LogOpen,std::string file_name,int max_file_line_perfile,int buf_size,int queue_size){
-    LogOpen = LogOpen;
-    max_file_line = max_file_line_perfile;
+bool info::init(bool LogOpen_,std::string file_name,int maxline_perfile,int buf_size,int queue_size){
+    LogOpen = LogOpen_;
+    max_file_line = maxline_perfile;
     write_buf_size = buf_size;
     // 异步写
     if(queue_size>0){
@@ -164,7 +164,6 @@ void info::write_line(int level, const char* format, ...){
         fputs(line.c_str(),fp);
     }
     ++cur_file_line;
-    flush();
     m_lock.unlock();
 }
 // 清空缓存
