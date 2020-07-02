@@ -90,6 +90,8 @@ public:
     bool dealwith_write(int);
     // 主循环
     void events_loop();
+    // 输出设置的信息
+    void printSetting();
 
 };
 

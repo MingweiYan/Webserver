@@ -17,7 +17,7 @@ class info{
 
 private:
     // 日志文件相关
-    char log_full_name[255];
+    char log_full_name[1024];
     char log_name[128];
     char dir_name[128];
     int cur_file_line;

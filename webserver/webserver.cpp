@@ -43,7 +43,7 @@ void http_work_func(http* conn){
 // 信号处理函数
 void sig_handler(int sig){
     int pre_erro = errno;
-    send(tools::pipefd[1],(char*)sig,1,0);
+    send(tools::pipefd[1],(char*) &sig,sizeof(sig),0);
     errno = pre_erro;
 }
 
@@ -87,60 +87,70 @@ webserver::~webserver(){
 */
 
 
-void webserver::parse_arg(std::string dbuser,std::string dbpasswd,std::string dbname, int argc , char** argv){
+void webserver::parse_arg(std::string dbuser,std::string dbpasswd,std::string dbname_, int argc , char** argv){
     int opt;
     // 冒号表示后面有值
     // [-p port]  [-l LOGWrite] [-m TRIGMode] [-o OPT_LINGER] [-s sql_num] [-t thread_num] [-c close_log] [-a actor_model] 
 
     // 默认参数
-    int serverport  = 9006;  
-    bool logOpen = true;
-    bool AsynLog = false;
-    int trigmod = 1; // 0-4  LT + LT  LT + ET ET + LT ET + LT    
-    bool linger = false;
-    int sql_num = 8;
-    int thread_num = 8;
-    int actormodel = proactor;
+    dbusername = dbuser;
+    dbpassword = dbpasswd;
+    dbport = 3306;
+    dbname = dbname_;
+    LogOpen = true;
+    LogAsynWrite = false;
+    sock_linger = false;
+    trigueMode = 1; 
+    sql_conn_size = 8;
+    thread_size = 8;
+    actor_model = proactor; 
+    m_threadpoll  = NULL;      
+    server_port =  9006;
+    timer_slot = TIMESLOT;
+    stop_server = false;
+    time_out = false;
+
 
     const char *str = "p:v:l:m:o:s:t:c:a:";
     while ( (opt = getopt(argc, argv, str)) != -1){
         
         switch (opt){
-        // 
+        //  服务器端口
         case 'p':{
-            serverport = atoi(optarg);
+            server_port = atoi(optarg);
             break;
         }
-        // 0 关闭 非0打开
+        // Log  异步写 0 关闭 非0打开
         case 'l':{
-            AsynLog = atoi(optarg);
+            LogAsynWrite = atoi(optarg);
             break;
         }
-        //
+        // 触发模式  0-4  LT + LT  LT + ET ET + LT ET + LT  
         case 'm':{
-            trigmod = atoi(optarg);
+            trigueMode = atoi(optarg);
             break;
         }
-        // 0 关闭 非0打开
+        // linger 0 关闭 非0打开
         case 'o':{
-            linger = atoi(optarg);
+            sock_linger = atoi(optarg);
             break;
         }
-        //
+        //  mysql 连接数目
         case 's':{
-            sql_num = atoi(optarg);
+            sql_conn_size = atoi(optarg);
             break;
         }
-        //
+        // 线程池大小
         case 't':{
-            thread_num = atoi(optarg);
+            thread_size = atoi(optarg);
             break;
         }
-        // 0 关闭 非0打开
+        // Log 打开 0 关闭 非0打开
         case 'c':{
-            logOpen = atoi(optarg);
+            LogOpen = atoi(optarg);
             break;
         }
+        // 并发时间处理模式
         case 'a':{
             actor_model = atoi(optarg);
             break;
@@ -149,36 +159,18 @@ void webserver::parse_arg(std::string dbuser,std::string dbpasswd,std::string db
             break;
         }
     }
-    
-    // 初始化
-    init(dbuser,dbpasswd,dbname,logOpen,AsynLog,server_port,linger,trigmod,sql_num,thread_num,actor_model);
 }
 
 
 // 初始化函数
 void webserver::init(std::string dbusername_,std::string dbpassword_,std::string dbname_,bool useLog,bool logAsyn,
             int servport,bool linger, int trigue_mode_,int sql_cnt,int thread_cnt,int actor_model_){
-    dbusername = dbusername_;
-    dbpassword = dbpassword_;
-    dbport = 3306;
-    dbname = dbname_;
-    LogOpen = useLog;
-    LogAsynWrite = logAsyn;
-    sock_linger = linger;
-    trigueMode = trigue_mode_;
-    sql_conn_size = sql_cnt;
-    thread_size = thread_cnt;
-    actor_model = actor_model_; 
-    m_threadpoll  = NULL;      
-    server_port =  servport;
-    timer_slot = TIMESLOT;
-    stop_server = false;
-    time_out = false;
+    
 }
 // 初始化线程库
 void webserver::init_threadpoll(){
     m_threadpoll = new threadpoll<http>(std::function<void(http*)>(http_work_func),thread_size,10000);
-    LOG_INFO("initialize threadpoll function");  
+    LOG_INFO("%s","initialize threadpoll function");  
 }
 // 初始化log
 void webserver::init_log(){
@@ -187,12 +179,12 @@ void webserver::init_log(){
     } else{
         info::getInstance()->init(LogOpen,"./ServerLog",800000,2000,0);
     }
-    LOG_INFO("initialize log function");   
+    LOG_INFO("%s","initialize log function");   
 }
 // 初始化mysql 
 void webserver::init_mysqlpoll(){
     mysqlpoll::getInstance()->init("localhost",dbusername,dbpassword,dbport,dbname,sql_conn_size);
-    LOG_INFO("initialize mysqlpoll function");  
+    LOG_INFO("%s","initialize mysqlpoll function");  
 }
 
 
@@ -201,12 +193,17 @@ void webserver::init_listen(){
 
     //初始化http静态变量
     init_http_static(rootPath);
-
-    LOG_INFO("load user account and password from database")
+    LOG_INFO("%s","load user account and password from database")
 
     // 创建监听socket
     listenfd = socket(PF_INET,SOCK_STREAM,0);
     assert(listenfd >= 0);
+    struct sockaddr_in address;
+    bzero(&address,sizeof(address));
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = htonl(INADDR_ANY);
+    address.sin_port = htons(server_port);
+
     // 优雅关闭  断开连接后 发送完数据
     if(sock_linger){
         struct linger tmp = {1, 1};
@@ -215,12 +212,6 @@ void webserver::init_listen(){
         struct linger tmp = {0, 1};
         setsockopt(listenfd, SOL_SOCKET, SO_LINGER, &tmp, sizeof(tmp));
     }
-    struct sockaddr_in address;
-    bzero(&address,sizeof(address));
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = htonl(INADDR_ANY);
-    address.sin_port = htons(server_port);
-    
     // 重用端口
     int flag = 1;
     setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
@@ -228,8 +219,7 @@ void webserver::init_listen(){
     assert(ret >= 0);
     ret = listen(listenfd, 5);
     assert(ret >= 0);
-
-    LOG_INFO("initialize listen socket")
+    LOG_INFO("%s","initialize listen socket")
 
     // epoll
     epollfd = epoll_create(5);
@@ -247,7 +237,7 @@ void webserver::init_listen(){
 
     http::set_epoll_fd(epollfd);
 
-    LOG_INFO("initialize epoll fd")
+    LOG_INFO("%s","initialize epoll fd")
 
     // 创建管道
     ret = socketpair(PF_UNIX,SOCK_STREAM,0,pipefd);
@@ -264,15 +254,15 @@ void webserver::init_listen(){
     tool.set_sigfunc(SIGPIPE,SIG_IGN,false);
     tool.set_sigfunc(SIGALRM,sig_handler,false);
     tool.set_sigfunc(SIGTERM,sig_handler,false);
-    alarm(timer_slot);
-
-    LOG_INFO("initialize pipe and signal")
+    
+    LOG_INFO("%s","initialize pipe and signal")
 } 
 // 初始化定时器
 void webserver::init_timer(){
     timers = new list_timer(TIMESLOT);
     timers->setfunc(timeout_handler);
-    LOG_INFO("initialize timer")
+    alarm(timer_slot);
+    LOG_INFO("%s","initialize timer")
 }
 
 
@@ -364,6 +354,7 @@ bool webserver::accpet_connection(){
             add_timernode(connfd);
         }
     }
+    LOG_INFO("%s","accept a new connection")
     return true;
 }
 
@@ -404,7 +395,9 @@ bool webserver::dealwith_read(int connfd){
         }
         // 失败
         else {
+            remove_timernode(connfd);
             http_conns[connfd].close_connection();
+            LOG_WARN("%s","proactor http read_once failure")
         }
     }
     // reactor
@@ -443,7 +436,7 @@ void webserver::events_loop(){
 
         int num = epoll_wait(epollfd,events,MAX_EVENT_NUMBER,-1);
         if (num < 0 && errno != EINTR){
-            LOG_ERROR("%s", "epoll failure");
+            LOG_ERROR("%s %s %d", "epoll failure","errno is",errno);
             break;
         }
 
@@ -455,29 +448,29 @@ void webserver::events_loop(){
             int sockfd = events[i].data.fd;
             //新连接
             if(sockfd == listenfd){
-                LOG_INFO("receive a  new conncetion")
+                LOG_INFO("%s","receive a new conncetion")
                 accpet_connection();
             }
             // 错误
             else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR) ){
-                LOG_INFO("connection rd hup or error")
+                LOG_INFO("%s","connection rd hup or error")
                 remove_timernode(sockfd);
                 http_conns[sockfd].close_connection();
             }
             // 信号
             else if ( (sockfd == pipefd[0]) && (events[i].events & EPOLLIN) ){
-                LOG_INFO("signal from pipe")
+                LOG_INFO("%s","signal from pipe")
                 bool ret = dealwith_signal();
                 if(!ret){
                     LOG_ERROR("%s", "dealsignal failure");
                 }
             }
             else if (events[i].events & EPOLLIN){
-                LOG_INFO("read event")
+                LOG_INFO("%s","read event")
                 dealwith_read(sockfd);
             }
             else if (events[i].events & EPOLLOUT){
-                 LOG_INFO("write event")
+                 LOG_INFO("%s","write event")
                 dealwith_write(sockfd);
             }
         }
@@ -489,5 +482,34 @@ void webserver::events_loop(){
     }
 }
 
-
+// 输出配置的服务器信息
+void webserver::printSetting(){
+    LOG_INFO("%s %s %s %s","mysql username: ",dbusername.c_str()," mysql password: ",dbpassword.c_str())
+    LOG_INFO("%s %s %s %d","mysql databasename :",dbname.c_str()," mysql port: ",dbport)
+    LOG_INFO("%s%d","server port is ",server_port)
+    switch (trigueMode)
+            {
+            case 0:
+                LOG_INFO("%s","Trigger mode is listen LT + http_conn LT")
+                break;
+            case 1:
+                LOG_INFO("%s","Trigger mode is listen LT + http_conn ET")
+                break;
+            case 2:
+                LOG_INFO("%s","Trigger mode is listen ET + http_conn LT")
+                break;
+            case 3:
+                LOG_INFO("%s","Trigger mode is listen ET + http_conn ET")
+                break;
+            default:
+                LOG_INFO("%s","Opps Unkonwn Trigger mode ")
+                break;
+            }
+    LOG_INFO("%s%s","Log write is ",LogAsynWrite ? "asynronization" :"synchronization")
+    LOG_INFO("%s%s","reactor is ",actor_model == proactor ? "proactor" :"reactor")
+    LOG_INFO("%s%d","mysql connection number is ",sql_conn_size)
+    LOG_INFO("%s%d","threadpoll connection number is ",thread_size)
+    LOG_INFO("%s%s","server linger is ",sock_linger ? "opened" :"closed")
+    LOG_INFO("%s","\r")
+}
 

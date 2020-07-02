@@ -54,7 +54,7 @@ bool info::init(bool LogOpen_,std::string file_name,int maxline_perfile,int buf_
     const char *p = strrchr(file_name.c_str(), '/');
     if (p == NULL) {
         // 如果未找到
-        snprintf(log_full_name, 255, "%d_%02d_%02d_%s", now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, file_name.c_str());
+        snprintf(log_full_name, 1000, "%d_%02d_%02d_%s", now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, file_name.c_str());
     }
     else{
         // +1 去除 / 得到文件名
@@ -62,7 +62,7 @@ bool info::init(bool LogOpen_,std::string file_name,int maxline_perfile,int buf_
         // 得到文件夹名
         strncpy(dir_name, file_name.c_str(), p - file_name.c_str() + 1);  
         // 构建完整的文件名
-        snprintf(log_full_name, 255, "%s%d_%02d_%02d_%s", dir_name, now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, log_name);
+        snprintf(log_full_name, 1000, "%s%d_%02d_%02d_%s", dir_name, now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, log_name);
     }
     last_time_day = now->tm_mday;
     // 打开文件 
