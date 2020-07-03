@@ -26,7 +26,7 @@ private:
     sem  m_sem;
     // 线程相关
     std::function<void (T*)> work_func;
-    pthread_t* pthread_id;
+    std::unique_ptr<pthread_t[]> pthread_id;
     int thread_poll_size;
 public:
     
@@ -42,33 +42,33 @@ public:
             exit(1);
         }
             
-        pthread_id = new pthread_t[thread_poll_size];
+        pthread_id.reset( new pthread_t[thread_poll_size] );
         if(!pthread_id){
             LOG_ERROR("allocate pthread matrix error ")
             throw std::exception();
         } 
             
         for(int i = 0; i<thread_poll_size; ++i){
-            int ret = pthread_create(pthread_id+i,NULL,thread_init_func,this);
+            int ret = pthread_create(&pthread_id[i],NULL,thread_init_func,this);
             if(ret!=0){
-                delete [] pthread_id;
                 LOG_ERROR("threadpoll create thread error")
                 exit(1);
             }
             ret = pthread_detach(pthread_id[i]);
             if(ret!=0){
-                delete [] pthread_id;
                 LOG_ERROR("threadpoll detach  thread error")
                 exit(1);
             }
         }
     }
+    /*
     // 析构函数
     ~threadpoll(){
         if(pthread_id != NULL){
             delete [] pthread_id;
         }
     }
+    */
     //线程初始化函数 
     static void* thread_init_func(void* arg){
         threadpoll* curpoll = (threadpoll*)arg;
@@ -96,6 +96,7 @@ public:
             m_lock.unlock();
             return false;
         }
+      //  LOG_INFO("%s", work == NULL? "put NULL in the threadpoll":"not put NULL in the threadpoll")
         work_list.push_back(work);
         ++cur_work_size;
         m_lock.unlock();
@@ -103,14 +104,15 @@ public:
         return true;
     }
     //从工作列表取出一项任务
-    bool get(T* work){
+    bool get(T* &  work){
         m_lock.lock();
-        if(cur_work_size<=0){
+        if(cur_work_size <= 0){
             return false;
             m_lock.unlock();
         }
         work = work_list.front();
         work_list.pop_front();
+        LOG_INFO("%s", work == NULL? "get NULL in the threadpoll":"not get NULL in the threadpoll")
         --cur_work_size;
         m_lock.unlock();
         return  true;

@@ -28,12 +28,12 @@ private:
     // 线程同步
     locker m_lock;
     // 写相关
-    char* write_buf;
+    std::unique_ptr<char[]> write_buf;
     int write_buf_size;
     FILE* fp;
     // 异步写相关
     bool isAsyn;
-    blockqueue<std::string>* lines_to_write;
+    std::unique_ptr< blockqueue<std::string> > lines_to_write;
     static void* pthread_init_write(void*);
     void asyn_write(); 
     // 是否使用log

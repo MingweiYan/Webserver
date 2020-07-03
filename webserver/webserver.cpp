@@ -54,13 +54,14 @@ void sig_handler(int sig){
 
 // 构造函数
 webserver::webserver(){
-    http_conns = new http[MAX_FD];
+    http_conns;
+   // http_conns.reset( new http[MAX_FD] );
     char server_path[256];
     getcwd(server_path,sizeof(server_path));
     char root[6] = "/root"; 
-    rootPath = (char *)malloc(strlen(server_path) + strlen(root) + 1);
-    strcpy(rootPath,server_path);
-    strcat(rootPath,root);
+    rootPath  += server_path;
+    rootPath  += root; 
+   
 }
 // 析构函数
 webserver::~webserver(){
@@ -69,16 +70,14 @@ webserver::~webserver(){
     close(listenfd);
     close(pipefd[1]);
     close(pipefd[0]);
-    free(rootPath);
-    delete timers;
-    delete m_threadpoll;
-    delete http_conns;
-    // 释放定时器节点
-    for(int i = 0; i < MAX_FD; ++i){
-        if(to_timernode[i]){
-            delete to_timernode[i];
+
+    for(timer_node* timer: timer_nodes){
+        if(timer != nullptr){
+            delete timer;
+            timer = nullptr;
         }
     }
+
 }
 
 
@@ -103,8 +102,7 @@ void webserver::parse_arg(std::string dbuser,std::string dbpasswd,std::string db
     trigueMode = 1; 
     sql_conn_size = 8;
     thread_size = 8;
-    actor_model = proactor; 
-    m_threadpoll  = NULL;      
+    actor_model = proactor;      
     server_port =  9006;
     timer_slot = TIMESLOT;
     stop_server = false;
@@ -162,14 +160,9 @@ void webserver::parse_arg(std::string dbuser,std::string dbpasswd,std::string db
 }
 
 
-// 初始化函数
-void webserver::init(std::string dbusername_,std::string dbpassword_,std::string dbname_,bool useLog,bool logAsyn,
-            int servport,bool linger, int trigue_mode_,int sql_cnt,int thread_cnt,int actor_model_){
-    
-}
 // 初始化线程库
 void webserver::init_threadpoll(){
-    m_threadpoll = new threadpoll<http>(std::function<void(http*)>(http_work_func),thread_size,10000);
+    m_threadpoll.reset( new threadpoll<http>(std::function<void(http*)>(http_work_func),thread_size,10000) );
     LOG_INFO("%s","initialize threadpoll function");  
 }
 // 初始化log
@@ -192,7 +185,7 @@ void webserver::init_mysqlpoll(){
 void webserver::init_listen(){
 
     //初始化http静态变量
-    init_http_static(rootPath);
+    init_http_static(const_cast<char*>( rootPath.c_str()));
     LOG_INFO("%s","load user account and password from database")
 
     // 创建监听socket
@@ -259,8 +252,9 @@ void webserver::init_listen(){
 } 
 // 初始化定时器
 void webserver::init_timer(){
-    timers = new list_timer(TIMESLOT);
+    timers.reset(new list_timer(TIMESLOT));
     timers->setfunc(timeout_handler);
+    timer_nodes = std::vector<timer_node*>(MAX_FD,NULL);
     alarm(timer_slot);
     LOG_INFO("%s","initialize timer")
 }
@@ -281,19 +275,21 @@ void webserver::adjust_timernode(timer_node* timer){
 //在接受连接时添加一个定时器
 void webserver::add_timernode(int fd){
     // 这里有问题
-    timer_node* timer = new timer_node;
+    timer_node* timer( new timer_node);
     timer->sockfd = fd;
     timer->conn = &http_conns[fd];
     time_t cur = time(NULL);
     timer->expire_time = cur + 3 * TIMESLOT;
     timers->add(timer);
     to_timernode[fd] = timer;
+    timer_nodes[fd] = timer;
 }
 // 移除定时器节点
 void webserver::remove_timernode(int fd){
     timer_node* timer = to_timernode[fd];
     timers->remove(timer);
-    to_timernode[fd] = NULL;
+    delete timer;
+    to_timernode[fd] = nullptr;
 }
 // 定时器处理
 void webserver::timer_handler(){
@@ -330,6 +326,7 @@ bool webserver::accpet_connection(){
             http_conns[connfd].init(connfd,LT);
         }
         add_timernode(connfd);
+        
     }
     // ET + LT   ET + ET  listen ET
     else{
@@ -390,7 +387,8 @@ bool webserver::dealwith_read(int connfd){
     if(actor_model == proactor){
         bool ret = http_conns[connfd].read_once();
         if(ret){
-            m_threadpoll->put(http_conns+connfd);
+            m_threadpoll->put(&http_conns[connfd]);
+         // http_conns[connfd].process();
             adjust_timernode(to_timernode[connfd]);
         }
         // 失败
@@ -402,7 +400,7 @@ bool webserver::dealwith_read(int connfd){
     }
     // reactor
     else {
-        m_threadpoll->put(http_conns+connfd);
+        m_threadpoll->put(&http_conns[connfd]);
         adjust_timernode(to_timernode[connfd]);
     }
 }
@@ -412,7 +410,7 @@ bool webserver::dealwith_write(int connfd){
     if(actor_model == proactor){
         bool ret = http_conns[connfd].write_to_socket();
         if(ret){
-            adjust_timernode(to_timernode[connfd]);
+           adjust_timernode(to_timernode[connfd]);
         }
         // 失败
         else {

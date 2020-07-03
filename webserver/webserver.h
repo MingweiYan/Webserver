@@ -10,6 +10,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <getopt.h>
+#include<memory>
 
 #include"../info/info.h"
 #include"../threadpoll/threadpool.h"
@@ -41,10 +42,11 @@ private:
     int dbport;
     int sql_conn_size;
     // 定时器相关
-    timer*  timers;
+    std::unique_ptr<timer>  timers;
     int pipefd[2];
     time_t timer_slot;
     timer_node* to_timernode[MAX_FD];
+    std::vector<timer_node*> timer_nodes;
     //epoll 相关
     int epollfd;
     int listenfd;
@@ -53,13 +55,14 @@ private:
     int server_port; 
     bool sock_linger;
     int trigueMode;
-    http* http_conns;
+    std::unordered_map<int,http> http_conns;
+    //std::unique_ptr<http[]> http_conns;
     bool stop_server;
     bool time_out;
     int actor_model;
-    char* rootPath;
+    std::string rootPath;
     //线程池
-    threadpoll<http> * m_threadpoll;
+    std::unique_ptr< threadpoll<http> >  m_threadpoll;
     int thread_size;
     // 其他
     tools tool;
@@ -72,7 +75,6 @@ public:
     ~webserver();
     void parse_arg(std::string dbuser,std::string dbpasswd,std::string dbname, int argc, char* argv[]);
     // 初始化
-    void init(std::string dbusername,std::string dbpassword,std::string dbname,bool useLog,bool logAsyn,int servport,bool linger, int trigue_mode,int sql_cnt,int thread_cnt,int actor_model);
     void init_log();
     void init_threadpoll();
     void init_mysqlpoll();

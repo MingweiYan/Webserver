@@ -218,7 +218,6 @@
         API :
             // 初始化
             void parse_arg(int argc, char* argv[]);
-            void init(std::string dbusername,std::string dbpassword,std::string dbname,bool useLog,bool logAsyn,int servport,bool linger, int trigue_mode,int sql_cnt,int thread_cnt,int actor_model);
             void init_log();
             void init_threadpoll();
             void init_mysqlpoll();

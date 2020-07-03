@@ -35,8 +35,6 @@ int main(int argc,char** argv){
 
     server.printSetting();
     
-    //server.accpet_connection();
-    
     
     server.events_loop();
 

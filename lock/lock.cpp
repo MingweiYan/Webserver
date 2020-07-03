@@ -1,12 +1,14 @@
 #include <pthread.h>
 #include<semaphore.h>
 #include<exception>
+#include<iostream>
 #include"lock.h"
 /*
     locker 
 */
 locker::locker(){
     if(pthread_mutex_init(&m_mutex,NULL)!=0){
+        std::cout<<"pthread mutex init error"<<std::endl;
         throw std::exception();
     }
 }
@@ -34,12 +36,14 @@ pthread_mutex_t* locker::get(){
 */
 sem::sem(){
     if(sem_init(&m_sem,0,0)!=0){
+        std::cout<<"semaphore init error"<<std::endl;
         throw std::exception();
     }
 }
 sem::sem(int i){
     if(i<0) throw std::exception();
     if(sem_init(&m_sem,0,i)!=0){
+        std::cout<<"semaphore init error"<<std::endl;
         throw std::exception();
     }
 }
@@ -60,6 +64,7 @@ bool sem::post(){
 */
 cond::cond(){
     if(pthread_cond_init(&my_cond,NULL)!=0){
+        std::cout<<"pthread cond init error"<<std::endl;
         throw std::exception();
     }
 }

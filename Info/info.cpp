@@ -16,12 +16,6 @@ info::~info(){
     if(fp != NULL){
         fclose(fp);
     }
-    if(lines_to_write != NULL){
-        delete lines_to_write;
-    }
-    if(write_buf != NULL){
-        delete write_buf;
-    }
 }
 // 初始化
 bool info::init(bool LogOpen_,std::string file_name,int maxline_perfile,int buf_size,int queue_size){
@@ -31,19 +25,21 @@ bool info::init(bool LogOpen_,std::string file_name,int maxline_perfile,int buf_
     // 异步写
     if(queue_size>0){
         isAsyn = true;
-        lines_to_write = new blockqueue<std::string>(queue_size); 
+        lines_to_write.reset( new blockqueue<std::string>(queue_size) ); 
         pthread_t tid;
         int ret = pthread_create(&tid,NULL,pthread_init_write,NULL);
         if(ret!=0){
+            std::cout<<"pthread create info asyn failure"<<std::endl;
             throw std::exception();
         }
         ret = pthread_detach(tid);
         if(ret!=0){
+            std::cout<<"pthread detach info asyn failure"<<std::endl;
             throw std::exception();
         }
     }
-    write_buf = new char[write_buf_size];
-    memset(write_buf,'\0',write_buf_size);
+    write_buf.reset( new char[write_buf_size]);
+    memset(write_buf.get(),'\0',write_buf_size);
     // time 返回自1970 起的秒数  是无符号数
     // localtime 把time_t 解释为tm 包含时分秒年月日的结构体 
     time_t cur = time(NULL);
@@ -105,7 +101,8 @@ void info::write_line(int level, const char* format, ...){
         fclose(fp);
         snprintf(log_full_name, 255, "%s%d_%02d_%02d_%s", dir_name, cur_time->tm_year + 1900, cur_time->tm_mon + 1, cur_time->tm_mday, log_name);
         fp = fopen(log_full_name,"a");
-        if(fp!=NULL){
+        if(fp == NULL){
+            std::cout<<"open log file failure"<<std::endl;
             throw std::exception();
         }
     }
@@ -116,7 +113,8 @@ void info::write_line(int level, const char* format, ...){
         snprintf(log_full_name, 255, "%s%d_%02d_%02d_%s_%d", dir_name, cur_time->tm_year + 1900, cur_time->tm_mon + 1, cur_time->tm_mday, log_name,cur_file_num);
         ++cur_file_num;
         fp = fopen(log_full_name,"a");
-        if(fp!=NULL){
+        if(fp == NULL){
+            std::cout<<"open log file failure"<<std::endl;
             throw std::exception();
         }
     }
@@ -147,16 +145,16 @@ void info::write_line(int level, const char* format, ...){
     va_start(valst, format);
     //写入的具体时间内容格式
     m_lock.lock();
-    int n = snprintf(write_buf, 48, "%d-%02d-%02d %02d:%02d:%02d.%06ld %s ",
+    int n = snprintf(write_buf.get(), 48, "%d-%02d-%02d %02d:%02d:%02d.%06ld %s ",
                      cur_time->tm_year + 1900, cur_time->tm_mon + 1, cur_time->tm_mday,
                      cur_time->tm_hour, cur_time->tm_min, cur_time->tm_sec, now.tv_usec, log_type);
     
-    int m = vsnprintf(write_buf + n, write_buf_size-n, format, valst);
+    int m = vsnprintf(write_buf.get() + n, write_buf_size-n, format, valst);
     va_end(valst);
 
     write_buf[n + m] = '\n';
     write_buf[n + m + 1] = '\0';
-    std::string line = write_buf;
+    std::string line = write_buf.get();
 
     if(isAsyn && !lines_to_write->isFull()){
         lines_to_write->push_back(line);

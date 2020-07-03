@@ -38,6 +38,8 @@ void init_http_static(char* rootPath_){
 
     http::workdir = rootPath_;
    
+   
+
     //先从连接池中取一个连接
     mysqlconnection mysqlcon;
     MYSQL *mysql = mysqlcon.get_mysql();
@@ -57,6 +59,7 @@ void init_http_static(char* rootPath_){
         std::string temp2(row[1]);
         http::users[temp1] = temp2;
     }
+    
     
 }
 //初始化函数
@@ -411,11 +414,13 @@ REQUEST_STATE http::do_request(){
             int res = mysql_query(mysqlconn,sql_insert.c_str());
             http::users .insert({name,password});
             http::m_lock.unlock();
-            if(res==0){
+       //     strcpy(request_url,"/welcome.html");
+           if(res==0){
                 strcpy(request_url,"/log.html");
             } else {
                 strcpy(request_url,"/welcome.html");
             }
+            
         } else {
             strcpy(request_url,"/registerError.html");
         }
