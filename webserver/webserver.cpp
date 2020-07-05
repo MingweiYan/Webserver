@@ -11,35 +11,6 @@ void show_error(int connfd,const char* info){
     send(connfd,info,sizeof(info),0);
     close(connfd);
 }
-// 定时器超时处理函数
-void timeout_handler(timer_node* node){
-    node->conn->close_connection();
-}
-
-//  !!!  这里需不需要对conn分状态？？？
-// 线程池的工作函数  
-void http_work_func(http* conn){
-    // reactor
-    if(!conn->isProactor()){
-        int ret = conn->read_once();
-        if(ret){
-            conn->process();
-        } 
-        // 读取失败 直接关闭
-        else {
-            conn->close_connection();
-        }
-        ret = conn->write_to_socket();
-        if(!ret){
-            conn->close_connection();
-        }
-    } 
-    // proactor
-    else{
-        conn->process();
-    }
-}
-
 // 信号处理函数
 void sig_handler(int sig){
     int pre_erro = errno;
@@ -57,7 +28,8 @@ webserver::webserver(){
     http_conns;
    // http_conns.reset( new http[MAX_FD] );
     char server_path[256];
-    getcwd(server_path,sizeof(server_path));
+    char* tmp;
+    tmp = getcwd(server_path,sizeof(server_path));
     char root[6] = "/root"; 
     rootPath  += server_path;
     rootPath  += root; 
@@ -162,7 +134,9 @@ void webserver::parse_arg(std::string dbuser,std::string dbpasswd,std::string db
 
 // 初始化线程库
 void webserver::init_threadpoll(){
-    m_threadpoll.reset( new threadpoll<http>(std::function<void(http*)>(http_work_func),thread_size,10000) );
+    std::function<void(http*)> func = std::bind(&webserver::http_work_func,this,std::placeholders::_1);
+    auto p = new threadpoll<http>(func,thread_size,10000);
+    m_threadpoll.reset(p);
     LOG_INFO("%s","initialize threadpoll function");  
 }
 // 初始化log
@@ -229,6 +203,7 @@ void webserver::init_listen(){
     }
 
     http::set_epoll_fd(epollfd);
+    http::set_actor_model(actor_model);
 
     LOG_INFO("%s","initialize epoll fd")
 
@@ -253,7 +228,7 @@ void webserver::init_listen(){
 // 初始化定时器
 void webserver::init_timer(){
     timers.reset(new list_timer(TIMESLOT));
-    timers->setfunc(timeout_handler);
+    timers->setfunc(std::bind(&webserver::timeout_handler,this,std::placeholders::_1));
     timer_nodes = std::vector<timer_node*>(MAX_FD,NULL);
     alarm(timer_slot);
     LOG_INFO("%s","initialize timer")
@@ -266,7 +241,8 @@ void webserver::init_timer(){
 
 
 //重新调整定时器
-void webserver::adjust_timernode(timer_node* timer){
+void webserver::adjust_timernode(int fd){
+    timer_node* timer = to_timernode[fd];
     time_t cur = time(NULL);
     timer->expire_time = cur + 3 * TIMESLOT;
     timers->adjust(timer);
@@ -290,13 +266,18 @@ void webserver::remove_timernode(int fd){
     timers->remove(timer);
     delete timer;
     to_timernode[fd] = nullptr;
+    timer_nodes[fd] = NULL;
 }
 // 定时器处理
 void webserver::timer_handler(){
     timers->tick();
     alarm(timers->slot());
 }
-
+// 定时器超时处理函数
+void webserver::timeout_handler(timer_node* node){
+    node->conn->close_connection();
+    remove_timernode(node->sockfd);
+}
 
 /*
     处理epoll事件
@@ -321,9 +302,11 @@ bool webserver::accpet_connection(){
         // LT + ET    
         if(trigueMode ==1){
             http_conns[connfd].init(connfd,ET);
+            toSockfd[ &http_conns[connfd] ] = connfd;
         }
         else{  //  LT + LT
             http_conns[connfd].init(connfd,LT);
+            toSockfd[ &http_conns[connfd] ] = connfd;
         }
         add_timernode(connfd);
         
@@ -344,9 +327,11 @@ bool webserver::accpet_connection(){
             //  ET + ET
             if(trigueMode ==3){
                 http_conns[connfd].init(connfd,ET);
+                toSockfd[ &http_conns[connfd] ] = connfd;
             }
             else{  //  ET + LT
                 http_conns[connfd].init(connfd,LT);
+                toSockfd[ &http_conns[connfd] ] = connfd;
             }
             add_timernode(connfd);
         }
@@ -389,7 +374,7 @@ bool webserver::dealwith_read(int connfd){
         if(ret){
             m_threadpoll->put(&http_conns[connfd]);
          // http_conns[connfd].process();
-            adjust_timernode(to_timernode[connfd]);
+            adjust_timernode(connfd);
         }
         // 失败
         else {
@@ -401,7 +386,7 @@ bool webserver::dealwith_read(int connfd){
     // reactor
     else {
         m_threadpoll->put(&http_conns[connfd]);
-        adjust_timernode(to_timernode[connfd]);
+        adjust_timernode(connfd);
     }
 }
 // 处理写
@@ -410,7 +395,7 @@ bool webserver::dealwith_write(int connfd){
     if(actor_model == proactor){
         bool ret = http_conns[connfd].write_to_socket();
         if(ret){
-           adjust_timernode(to_timernode[connfd]);
+           adjust_timernode(connfd);
         }
         // 失败
         else {
@@ -420,10 +405,35 @@ bool webserver::dealwith_write(int connfd){
     // reactor
     else {
         // 这里不考虑  线程池分读写状态
-        adjust_timernode(to_timernode[connfd]);
+        adjust_timernode(connfd);
     }
 }
 
+
+// 线程池的工作函数  
+void webserver::http_work_func(http* conn){
+    // reactor
+    if(!conn->isProactor()){
+        int ret = conn->read_once();
+        if(ret){
+            conn->process();
+        } 
+        // 读取失败 直接关闭
+        else {
+            conn->close_connection();
+            remove_timernode(toSockfd[conn]);
+        }
+        ret = conn->write_to_socket();
+        if(!ret){
+            conn->close_connection();
+            remove_timernode(toSockfd[conn]);
+        }
+    } 
+    // proactor
+    else{
+        conn->process();
+    }
+}
 
 /*
     主循环

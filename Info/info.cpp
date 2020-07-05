@@ -99,7 +99,7 @@ void info::write_line(int level, const char* format, ...){
         while(isAsyn && !lines_to_write->empty()) ;
         fflush(fp);
         fclose(fp);
-        snprintf(log_full_name, 255, "%s%d_%02d_%02d_%s", dir_name, cur_time->tm_year + 1900, cur_time->tm_mon + 1, cur_time->tm_mday, log_name);
+        snprintf(log_full_name, 1000, "%s%d_%02d_%02d_%s", dir_name, cur_time->tm_year + 1900, cur_time->tm_mon + 1, cur_time->tm_mday, log_name);
         fp = fopen(log_full_name,"a");
         if(fp == NULL){
             std::cout<<"open log file failure"<<std::endl;
@@ -110,7 +110,7 @@ void info::write_line(int level, const char* format, ...){
     if(cur_file_line % max_file_line == 0){
         fflush(fp);
         fclose(fp);
-        snprintf(log_full_name, 255, "%s%d_%02d_%02d_%s_%d", dir_name, cur_time->tm_year + 1900, cur_time->tm_mon + 1, cur_time->tm_mday, log_name,cur_file_num);
+        snprintf(log_full_name, 1000, "%s%d_%02d_%02d_%s_%d", dir_name, cur_time->tm_year + 1900, cur_time->tm_mon + 1, cur_time->tm_mday, log_name,cur_file_num);
         ++cur_file_num;
         fp = fopen(log_full_name,"a");
         if(fp == NULL){

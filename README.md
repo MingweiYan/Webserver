@@ -1,3 +1,22 @@
+# 使用部分
+
+
+ - 命令行  
+    ./server  [-p port]  [-l LOGWrite] [-m TRIGMode] [-o OPT_LINGER] [-s sql_num] [-t thread_num] [-c close_log] [-a actor_model] 
+
+    * -p    设置服务器端口号   
+    * -l    异步写开关 0关闭 非0打开
+    * -m    套接字的触发模式
+        + 0   listenfd  LT   +    httpfd  LT     
+        + 1   listenfd  LT   +    httpfd  ET   
+        + 0   listenfd  ET   +    httpfd  ET   
+        + 0   listenfd  ET   +    httpfd  ET   
+    * -o    优雅关闭 0 关闭 非0打开
+    * -s    数据库连接数目
+    * -t    线程池连接数目
+    * -c    关闭日志 0关闭 非0打开
+    * -a    并发处理模式  0 是reactor  1是 proactor 
+
 
 # 依赖关系
 

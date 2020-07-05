@@ -102,9 +102,7 @@ private:
     HTTP_METHOD  cur_http_method;
     LINE_STATE  line_state;
     //其他
-    int sockfd;
-    int actor_model;
-    int epoll_trigger_model;
+    int sockfd; 
     char* request_url;
     bool KeepAlive;  // linger?
     std::string post_line;
@@ -120,6 +118,8 @@ private:
     static std::unordered_map<std::string,std::string> users;
     static tools  tool;
     static int epollfd;
+    static int actor_model;
+    static int epoll_trigger_model;
     
 public:
     static int cur_user_cnt;
@@ -153,10 +153,11 @@ public:
     bool add_content_len(int size);
     bool add_blank_line();
     bool add_content(const char*);
+
+    // 静态变量接口
     static void set_epoll_fd(int fd);
-
+    static void set_actor_model(int model);
     
-
 };
 
 /*

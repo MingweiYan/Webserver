@@ -46,6 +46,7 @@ private:
     int pipefd[2];
     time_t timer_slot;
     timer_node* to_timernode[MAX_FD];
+    std::unordered_map<http*,int> toSockfd;
     std::vector<timer_node*> timer_nodes;
     //epoll 相关
     int epollfd;
@@ -82,14 +83,17 @@ public:
     void init_listen();
     // 定时器相关
     void add_timernode(int fd);
-    void adjust_timernode(timer_node*);
+    void adjust_timernode(int);
     void remove_timernode(int);
     void timer_handler();
+    void timeout_handler(timer_node*);
     // epollfd相关
     bool accpet_connection();
     bool dealwith_signal();
     bool dealwith_read(int);
     bool dealwith_write(int);
+    // 线程池相关
+    void http_work_func(http* conn);
     // 主循环
     void events_loop();
     // 输出设置的信息
@@ -103,8 +107,6 @@ public:
 */
 void sig_handler(int sig);
 void show_error(int connfd,const char* info);
-void http_work_func(http* conn);
-void timeout_handler(timer_node* node);
 void init_static_member();
 
 

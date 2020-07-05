@@ -1,29 +1,13 @@
-#1 webserver的工作函数，需不需要对读写状态进行区分  
-
-
+#1 webserver的工作函数  对于  reactor模式下的写是否能正常使用等待测试
 #3 http 没有提供读写状态变量  没有地址
 
-
-#5 http  很多char*  和char[] 使用的不同
-
-
-#6 http类 初始化时 需要引入  事件处理模式？
-
-
-#8 http类 processread 解析content之后 是否置位LINEOPEN要放在花括号内
-
-
-#9 http类 do_request  注册和登录部分的代码 注释一部分
-
-
-#11  deal_timer  以及定义在 util的cb_func
 
 
 #12 webserver  接受连接时 ET模式 重复读 读到合适结束  且返回值存在问题
 
-#13 webserver  信号处理函数  发送信号 类型转换
 
-#14 info  大小问题  为何出现 %s 的warning
+
+
 
 
 Done:
@@ -35,3 +19,13 @@ Done:
     #7 http的linger是keepalive吗     yes\
 
     #10 addfd 需要设置非阻塞socket的地方   http  和 webserver已经检查
+
+    #9 http类 do_request  注册和登录部分的代码 注释一部分
+    
+    #14 info  大小问题  为何出现 %s 的warning
+
+    #8 http类 processread 解析content之后 是否置位LINEOPEN要放在花括号内  暂定放在花括号里
+
+    #13 webserver  信号处理函数  发送信号 类型转换
+
+    #11  deal_timer  以及定义在 util的cb_func

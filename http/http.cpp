@@ -20,13 +20,15 @@ const int proactor = 1;
 const int ET = 0;
 const int LT = 1;
 
-
+// 初始化静态变量
 int http::cur_user_cnt = 0;
 char* http::workdir = NULL;
 int http::epollfd = 0;
 locker http::http::m_lock = locker();
 tools http::tool = tools();
 std::unordered_map<std::string,std::string> http::users = std::unordered_map<std::string,std::string>();
+int http::actor_model = proactor;
+int http::epoll_trigger_model = ET;
 
 
 
@@ -59,7 +61,11 @@ void init_http_static(char* rootPath_){
         std::string temp2(row[1]);
         http::users[temp1] = temp2;
     }
-    
+    /*
+    for(auto iter = http::users.cbegin(); iter != http::users.cend(); ++iter){
+        std::cout<<"user:" <<iter->first<<"password: " <<iter->second<<std::endl;
+    }
+    */
     
 }
 //初始化函数
@@ -317,10 +323,9 @@ REQUEST_STATE http::process_read(){
         case CHECK_CONTENT:
             ret = parse_content(line);
             if(ret == GET_REQUEST){
+                line_state = LINE_OPEN;
                 return do_request();
             }
-            // 这里是不是应该在括号里
-            line_state = LINE_OPEN;
             break;
         default:
             return INTERNAL_ERROR;
@@ -400,11 +405,11 @@ REQUEST_STATE http::do_request(){
             password += post_line[idx];
         }
 
-        std::string  sql_insert = " INSERT INTO user(username, passwd) VALUES(' ";
+        std::string  sql_insert = " INSERT INTO user(username, passwd) VALUES('";
         sql_insert += name;
-        sql_insert += " ',' ";
+        sql_insert += "', '";
         sql_insert += password;
-        sql_insert += " ') ";
+        sql_insert += "')";
 
         mysqlconnection instance;
         MYSQL* mysqlconn = instance.get_mysql() ;
@@ -626,6 +631,8 @@ bool http::write_to_socket(){
         }
     }
 }
+
+
 // 判断是否是proactor
 bool http::isProactor(){
     return actor_model == proactor;
@@ -636,3 +643,9 @@ void http::set_epoll_fd(int fd){
     http::epollfd = fd;
     http::m_lock.unlock();
 }
+// 设置actormodel
+ void http::set_actor_model(int model){
+    http::m_lock.lock();
+    http::actor_model = model;
+    http::m_lock.unlock();
+ }
