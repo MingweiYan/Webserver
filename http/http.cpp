@@ -40,8 +40,6 @@ void init_http_static(char* rootPath_){
 
     http::workdir = rootPath_;
    
-   
-
     //先从连接池中取一个连接
     mysqlconnection mysqlcon;
     MYSQL *mysql = mysqlcon.get_mysql();
@@ -281,7 +279,7 @@ REQUEST_STATE http::parse_header(char* line){
         line += strspn(line, " \t");
     }
     else{
-        LOG_INFO("oop!unknow header: %s", line);
+       // LOG_INFO("oop!unknow header: %s", line);
     }
     return NO_REQUEST;
 }
@@ -301,7 +299,7 @@ REQUEST_STATE http::process_read(){
     while( (master_state == CHECK_CONTENT && line_state == LINE_OK) || ( line_state = parse_line() ) == LINE_OK ){
         char* line = get_line();
         cur_parseline_head = cur_parse_idx;
-        LOG_INFO("%s", line);
+      //  LOG_INFO("%s", line);
         REQUEST_STATE  ret;
         switch (master_state)
         {

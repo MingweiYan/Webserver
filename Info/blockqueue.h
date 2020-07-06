@@ -32,9 +32,9 @@ public:
             std::cout<<"use negative initialize blockqueue"<<std::endl;
             throw std::exception();
         }
-        T* p = new T[size];
-        res.reset(p);
-        if(!p){
+        std::unique_ptr<T[]> p( new T[size] );
+        res = std::move(p);
+        if(!p.get()){
             std::cout<<" create blockqueue matix failure "<<std::endl;
             throw std::exception();
         }

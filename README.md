@@ -17,6 +17,8 @@
     * -c    关闭日志 0关闭 非0打开
     * -a    并发处理模式  0 是reactor  1是 proactor 
 
+- webbench
+    ./webbench -2 -c 10 -t 30 http://127.0.0.1:9006/
 
 # 依赖关系
 
@@ -32,22 +34,22 @@
 
     tool  和 lock 不依赖
 
-    webserver list_timer http mysqlpoll threadpoll info blockqueue tool lock 
+    编译顺序  webserver list_timer http mysqlpoll threadpoll info blockqueue tool lock 
 
 
 
-#  具体实现
+# 具体实现
 
-## lock 文件夹
+- lock 文件夹
 
     1. throw 异常
         throw 抛出异常 std::exception() 显示std::exception() 会终止函数运行
         try 运行一个可能抛出异常的函数  catch (){}  可以定义自己的异常类 继承std::exception 然后定义what（）函数返回想输出的字符串 
         在catch里 写自己的异常类对象  然后 通过 对象的what函数输出字符串
 
-## info 文件夹
+- info 文件夹
 
-    blockqueue类
+   + blockqueue类
 
         实现的是资源同步问题（锁） 同时利用条件变量唤醒
         1) 模板类  使用数组来存储模板对象 两个位置指针分别指向头尾元素 循环计算下标
@@ -63,7 +65,7 @@
             bool isFull();
             bool empty();
 
-        1. 条件变量的使用
+        * 条件变量的使用
             while(cur_size <= 0){
                 bool ret = m_cond.wait(&m_lock);
                 // 条件变量出错

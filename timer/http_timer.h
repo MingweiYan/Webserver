@@ -16,6 +16,10 @@ public:
     time_t expire_time;
     http* conn;
     int sockfd; 
+    void clear(){
+        conn = NULL;
+        sockfd = 0;
+    }
 };
 /*
     自定义定时器虚基类

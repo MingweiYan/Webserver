@@ -45,9 +45,10 @@ private:
     std::unique_ptr<timer>  timers;
     int pipefd[2];
     time_t timer_slot;
-    timer_node* to_timernode[MAX_FD];
-    std::unordered_map<http*,int> toSockfd;
-    std::vector<timer_node*> timer_nodes;
+
+    //timer_node* to_timernode[MAX_FD];
+   // std::vector<timer_node*> timer_nodes;
+    std::unique_ptr<timer_node[]> timer_nodes;
     //epoll 相关
     int epollfd;
     int listenfd;
@@ -56,8 +57,9 @@ private:
     int server_port; 
     bool sock_linger;
     int trigueMode;
-    std::unordered_map<int,http> http_conns;
-    //std::unique_ptr<http[]> http_conns;
+    //std::unordered_map<int,http> http_conns;
+    std::unordered_map<http*,int> toSockfd;
+    std::unique_ptr<http[]> http_conns;
     bool stop_server;
     bool time_out;
     int actor_model;

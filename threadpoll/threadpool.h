@@ -41,9 +41,9 @@ public:
             LOG_ERROR("input incorrect threadpoll size when init threadpoll")
             exit(1);
         }
-            
-        pthread_id.reset( new pthread_t[thread_poll_size] );
-        if(!pthread_id){
+        std::unique_ptr<pthread_t[]> tmp ( new pthread_t[thread_poll_size] );
+        pthread_id = std::move(tmp);
+        if(!pthread_id.get()){
             LOG_ERROR("allocate pthread matrix error ")
             throw std::exception();
         } 
@@ -112,7 +112,7 @@ public:
         }
         work = work_list.front();
         work_list.pop_front();
-        LOG_INFO("%s", work == NULL? "get NULL in the threadpoll":"not get NULL in the threadpoll")
+     //   LOG_INFO("%s", work == NULL? "get NULL in the threadpoll":"not get NULL in the threadpoll")
         --cur_work_size;
         m_lock.unlock();
         return  true;

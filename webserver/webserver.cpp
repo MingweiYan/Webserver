@@ -25,8 +25,8 @@ void sig_handler(int sig){
 
 // 构造函数
 webserver::webserver(){
-    http_conns;
-   // http_conns.reset( new http[MAX_FD] );
+    std::unique_ptr<http[]> p (new http[MAX_FD]);
+    http_conns = std::move(p);
     char server_path[256];
     char* tmp;
     tmp = getcwd(server_path,sizeof(server_path));
@@ -43,12 +43,13 @@ webserver::~webserver(){
     close(pipefd[1]);
     close(pipefd[0]);
 
-    for(timer_node* timer: timer_nodes){
+   /* for(timer_node* timer: timer_nodes){
         if(timer != nullptr){
             delete timer;
             timer = nullptr;
         }
     }
+    */
 
 }
 
@@ -135,8 +136,8 @@ void webserver::parse_arg(std::string dbuser,std::string dbpasswd,std::string db
 // 初始化线程库
 void webserver::init_threadpoll(){
     std::function<void(http*)> func = std::bind(&webserver::http_work_func,this,std::placeholders::_1);
-    auto p = new threadpoll<http>(func,thread_size,10000);
-    m_threadpoll.reset(p);
+    std::unique_ptr< threadpoll<http> > p (new threadpoll<http>(func,thread_size,10000) );
+    m_threadpoll = std::move(p);
     LOG_INFO("%s","initialize threadpoll function");  
 }
 // 初始化log
@@ -227,9 +228,11 @@ void webserver::init_listen(){
 } 
 // 初始化定时器
 void webserver::init_timer(){
-    timers.reset(new list_timer(TIMESLOT));
+    std::unique_ptr<timer> tmp (new list_timer(TIMESLOT));
+    timers = std::move(tmp);
     timers->setfunc(std::bind(&webserver::timeout_handler,this,std::placeholders::_1));
-    timer_nodes = std::vector<timer_node*>(MAX_FD,NULL);
+    std::unique_ptr<timer_node[]> p ( new timer_node[MAX_FD] );
+    timer_nodes = std::move(p);
     alarm(timer_slot);
     LOG_INFO("%s","initialize timer")
 }
@@ -242,31 +245,27 @@ void webserver::init_timer(){
 
 //重新调整定时器
 void webserver::adjust_timernode(int fd){
-    timer_node* timer = to_timernode[fd];
+    timer_node* timer = &timer_nodes[fd];
     time_t cur = time(NULL);
     timer->expire_time = cur + 3 * TIMESLOT;
     timers->adjust(timer);
-    LOG_INFO("%s%d", "adjust timer",timer->sockfd);
+    //LOG_INFO("%s%d", "adjust timer",timer->sockfd);
 }
 //在接受连接时添加一个定时器
 void webserver::add_timernode(int fd){
     // 这里有问题
-    timer_node* timer( new timer_node);
+    timer_node * timer = &timer_nodes[fd];
     timer->sockfd = fd;
     timer->conn = &http_conns[fd];
     time_t cur = time(NULL);
     timer->expire_time = cur + 3 * TIMESLOT;
-    timers->add(timer);
-    to_timernode[fd] = timer;
-    timer_nodes[fd] = timer;
+    timers->add(timer); 
 }
 // 移除定时器节点
 void webserver::remove_timernode(int fd){
-    timer_node* timer = to_timernode[fd];
+    timer_node* timer = &timer_nodes[fd];
     timers->remove(timer);
-    delete timer;
-    to_timernode[fd] = nullptr;
-    timer_nodes[fd] = NULL;
+    timer_nodes[fd].clear();
 }
 // 定时器处理
 void webserver::timer_handler(){
@@ -336,7 +335,7 @@ bool webserver::accpet_connection(){
             add_timernode(connfd);
         }
     }
-    LOG_INFO("%s","accept a new connection")
+  //  LOG_INFO("%s","accept a new connection")
     return true;
 }
 
@@ -448,7 +447,7 @@ void webserver::events_loop(){
             break;
         }
 
-        LOG_INFO("%s%d%s","Epoll wait totally ",num," events trigger")
+     //   LOG_INFO("%s%d%s","Epoll wait totally ",num," events trigger")
 
         // 判断每一个事件
         for(int i = 0; i < num; ++i){
@@ -456,35 +455,35 @@ void webserver::events_loop(){
             int sockfd = events[i].data.fd;
             //新连接
             if(sockfd == listenfd){
-                LOG_INFO("%s","receive a new conncetion")
+            //    LOG_INFO("%s","receive a new conncetion")
                 accpet_connection();
             }
             // 错误
             else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR) ){
-                LOG_INFO("%s","connection rd hup or error")
+           //     LOG_INFO("%s","connection rd hup or error")
                 remove_timernode(sockfd);
                 http_conns[sockfd].close_connection();
             }
             // 信号
             else if ( (sockfd == pipefd[0]) && (events[i].events & EPOLLIN) ){
-                LOG_INFO("%s","signal from pipe")
+             //   LOG_INFO("%s","signal from pipe")
                 bool ret = dealwith_signal();
                 if(!ret){
                     LOG_ERROR("%s", "dealsignal failure");
                 }
             }
             else if (events[i].events & EPOLLIN){
-                LOG_INFO("%s","read event")
+             //   LOG_INFO("%s","read event")
                 dealwith_read(sockfd);
             }
             else if (events[i].events & EPOLLOUT){
-                 LOG_INFO("%s","write event")
+              //   LOG_INFO("%s","write event")
                 dealwith_write(sockfd);
             }
         }
         if(time_out){
             timers->dealwith_alarm();
-            LOG_INFO("%s", "deal with timeout");
+         //   LOG_INFO("%s", "deal with timeout");
             time_out = false;
         }
     }
@@ -518,6 +517,7 @@ void webserver::printSetting(){
     LOG_INFO("%s%d","mysql connection number is ",sql_conn_size)
     LOG_INFO("%s%d","threadpoll connection number is ",thread_size)
     LOG_INFO("%s%s","server linger is ",sock_linger ? "opened" :"closed")
-    LOG_INFO("%s","\r")
+    LOG_STR(" /***********************************************************************************************/")
+    LOG_STR("                                                                                                 ")
 }
 

@@ -25,7 +25,8 @@ bool info::init(bool LogOpen_,std::string file_name,int maxline_perfile,int buf_
     // 异步写
     if(queue_size>0){
         isAsyn = true;
-        lines_to_write.reset( new blockqueue<std::string>(queue_size) ); 
+        std::unique_ptr< blockqueue<std::string> > tmp (new blockqueue<std::string>(queue_size) ) ;
+        lines_to_write = std::move(tmp) ; 
         pthread_t tid;
         int ret = pthread_create(&tid,NULL,pthread_init_write,NULL);
         if(ret!=0){
@@ -38,7 +39,8 @@ bool info::init(bool LogOpen_,std::string file_name,int maxline_perfile,int buf_
             throw std::exception();
         }
     }
-    write_buf.reset( new char[write_buf_size]);
+    std::unique_ptr<char[]> tmp(new char[write_buf_size]);
+    write_buf = std::move(tmp);
     memset(write_buf.get(),'\0',write_buf_size);
     // time 返回自1970 起的秒数  是无符号数
     // localtime 把time_t 解释为tm 包含时分秒年月日的结构体 
@@ -164,6 +166,24 @@ void info::write_line(int level, const char* format, ...){
     ++cur_file_line;
     m_lock.unlock();
 }
+// 不加日志直接写
+void info::directOutput(std::string str){
+    m_lock.lock();
+    int n = snprintf(write_buf.get(),write_buf_size-2,"%s",str.c_str());
+    write_buf[n] = '\n';
+    write_buf[n+1] = '\0';
+    std::string line = write_buf.get();
+
+    if(isAsyn && !lines_to_write->isFull()){
+        lines_to_write->push_back(line);
+    } else { 
+        fputs(line.c_str(),fp);
+    }
+    ++cur_file_line;
+    m_lock.unlock();
+
+}
+
 // 清空缓存
 void info::flush(){
     m_lock.lock();

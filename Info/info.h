@@ -48,6 +48,7 @@ public:
     bool init(bool LogOpen,std::string file_name,int max_line_perfile,int write_buf_size,int queue_size);
     void flush();
     void write_line(int level, const char* format, ...);
+    void directOutput(std::string);
     bool isLogOpen();
 };
 
@@ -56,6 +57,7 @@ public:
 #define LOG_INFO(format, ...) if(info::getInstance()->isLogOpen()) {info::getInstance()->write_line(1,format,##__VA_ARGS__); info::getInstance()->flush();}
 #define LOG_WARN(format, ...) if(info::getInstance()->isLogOpen()) { info::getInstance()->write_line(2,format,##__VA_ARGS__); info::getInstance()->flush();}
 #define LOG_ERROR(format, ...) if(info::getInstance()->isLogOpen()) { info::getInstance()->write_line(3,format,##__VA_ARGS__); info::getInstance()->flush();}
+#define LOG_STR(str) if(info::getInstance()->isLogOpen()) { info::getInstance()->directOutput(str); info::getInstance()->flush();}
 
 
 #endif
