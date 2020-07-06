@@ -357,15 +357,6 @@ REQUEST_STATE http::do_request(){
     }
     // 登录
     else if(*(p+1) == '2'){
-        /*
-        char* tail_url  = (char*) malloc(sizeof(char)*200);
-        strcpy(tail_url,"/");
-        // 这里为什么要加2
-        strcat(tail_url,request_url+2);
-        //这里修改了
-        strncpy(native_request_url,tail_url,strlen(tail_url));
-        free(tail_url);
-        */
         std::string name; std::string password;
         // user=1234&password=123
         int idx = 5;
@@ -385,15 +376,6 @@ REQUEST_STATE http::do_request(){
     } 
     // 注册
     else if(*(p+1) == '3'){
-        /*
-        char* tail_url  = (char*) malloc(sizeof(char)*200);
-        strcpy(tail_url,"/");
-        // 这里为什么要加2
-        strcat(tail_url,request_url+2);
-        //这里修改了
-        strncpy(native_request_url+len,tail_url,strlen(tail_url));
-        free(tail_url);
-        */
         std::string name; std::string password;
         // user=1234&password=123
         int idx = 5;
@@ -432,23 +414,23 @@ REQUEST_STATE http::do_request(){
         strncpy(native_request_url + len, request_url, strlen(request_url)); 
     }
     // 请求图片
-    else if(*(p+1) == '5'){
+    else if(*(p+1) == '4'){
         char* tail_url = (char*) malloc(sizeof(char)*200);
         strcpy(tail_url, "/picture.html");
         strncpy(native_request_url+len,tail_url,strlen(tail_url));
         free(tail_url);
     }
     // 请求视频
-    else if(*(p+1) == '6'){
+    else if(*(p+1) == '5'){
         char* tail_url = (char*) malloc(sizeof(char)*200);
         strcpy(tail_url, "/video.html");
         strncpy(native_request_url+len,tail_url,strlen(tail_url));
         free(tail_url);
     }
-    // 请求关注页面
-    else if(*(p+1) == '7'){
+    // 请求歌曲
+    else if(*(p+1) == '6'){
         char* tail_url = (char*) malloc(sizeof(char)*200);
-        strcpy(tail_url, "/fans.html");
+        strcpy(tail_url, "/music.html");
         strncpy(native_request_url+len,tail_url,strlen(tail_url));
         free(tail_url);
     }
