@@ -140,6 +140,7 @@ void http::process(){
 bool http::read_once(){
     // 缓存区已满 直接返回
     if(cur_rd_idx > READ_BUFFER_SIZE){
+        LOG_WARN("s%","read bufer is full")
         return false;
     }
     int bytes_recv = 0;
@@ -570,7 +571,7 @@ bool http::process_write(REQUEST_STATE state){
 // 写函数
 bool http::write_to_socket(){
     // 已经写完了
-    if(bytes_to_send == 0){
+    if(bytes_to_send <= 0){
         http::tool.epoll_mod(http::epollfd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
         init();
         return true;
@@ -586,6 +587,7 @@ bool http::write_to_socket(){
             }
             // 否则出错 
             unmmap();
+            LOG_ERROR("%s %d","write to socket error the errorno is",errno)
             return false;
         }
         // 单次写完 更新结构体
