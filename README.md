@@ -3,6 +3,7 @@
 
  - 命令行  
     ./server  [-p port]  [-l LOGWrite] [-m TRIGMode] [-o OPT_LINGER] [-s sql_num] [-t thread_num] [-c close_log] [-a actor_model] 
+    ./server -s 20 -t 20 -c 0
 
     * -p    设置服务器端口号   
     * -l    异步写开关 0关闭 非0打开

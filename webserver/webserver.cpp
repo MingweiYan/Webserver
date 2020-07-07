@@ -18,6 +18,11 @@ void sig_handler(int sig){
     errno = pre_erro;
 }
 
+void nonmember_timeout_handler (timer_node* cur){
+    cur->conn->close_connection();
+    cur->clear();
+//    LOG_INFO("non-membertimeout func is called")
+}
 
 /*
     构造和析构
@@ -130,6 +135,7 @@ void webserver::parse_arg(std::string dbuser,std::string dbpasswd,std::string db
             break;
         }
     }
+
 }
 
 
@@ -190,7 +196,7 @@ void webserver::init_listen(){
     LOG_INFO("%s","initialize listen socket")
 
     // epoll
-    epollfd = epoll_create(5);
+    epollfd = epoll_create(MAX_FD);
     assert(epollfd != -1);
     // LT + LT  LT + ET 
     if(trigueMode == 0 || trigueMode == 1){
@@ -230,7 +236,8 @@ void webserver::init_listen(){
 void webserver::init_timer(){
     std::unique_ptr<timer> tmp (new list_timer(TIMESLOT));
     timers = std::move(tmp);
-    timers->setfunc(std::bind(&webserver::timeout_handler,this,std::placeholders::_1));
+  // timers->setfunc(std::bind(&webserver::timeout_handler,this,std::placeholders::_1));
+    timers->setfunc(nonmember_timeout_handler);
     std::unique_ptr<timer_node[]> p ( new timer_node[MAX_FD] );
     timer_nodes = std::move(p);
     alarm(timer_slot);
@@ -249,7 +256,7 @@ void webserver::adjust_timernode(int fd){
     time_t cur = time(NULL);
     timer->expire_time = cur + 3 * TIMESLOT;
     timers->adjust(timer);
-    //LOG_INFO("%s%d", "adjust timer",timer->sockfd);
+ //   LOG_INFO("%s%d", "adjust timernmode whose sockfd is ",fd);
 }
 //在接受连接时添加一个定时器
 void webserver::add_timernode(int fd){
@@ -260,12 +267,14 @@ void webserver::add_timernode(int fd){
     time_t cur = time(NULL);
     timer->expire_time = cur + 3 * TIMESLOT;
     timers->add(timer); 
+//    LOG_INFO("%s%d", "add timernmode whose sockfd is ",fd);
 }
 // 移除定时器节点
 void webserver::remove_timernode(int fd){
     timer_node* timer = &timer_nodes[fd];
     timers->remove(timer);
     timer_nodes[fd].clear();
+ //   LOG_INFO("%s%d","remove timer node whose sockfd is ",fd)
 }
 // 定时器处理
 void webserver::timer_handler(){
@@ -274,8 +283,9 @@ void webserver::timer_handler(){
 }
 // 定时器超时处理函数
 void webserver::timeout_handler(timer_node* node){
-    node->conn->close_connection();
     remove_timernode(node->sockfd);
+    node->conn->close_connection();
+    
 }
 
 /*
@@ -308,7 +318,7 @@ bool webserver::accpet_connection(){
             toSockfd[ &http_conns[connfd] ] = connfd;
         }
         add_timernode(connfd);
-        
+    //    LOG_INFO("%s%d","establish a new connection, sockfd is ",connfd)
     }
     // ET + LT   ET + ET  listen ET
     else{
@@ -374,12 +384,13 @@ bool webserver::dealwith_read(int connfd){
             m_threadpoll->put(&http_conns[connfd]);
          // http_conns[connfd].process();
             adjust_timernode(connfd);
+        //    LOG_INFO("%s%d","read_once sucess the sockfd is ",connfd)
         }
         // 失败
         else {
             remove_timernode(connfd);
             http_conns[connfd].close_connection();
-            LOG_WARN("%s","proactor http read_once failure")
+        //    LOG_WARN("%s%d","proactor http read_once failure the sockfd is ",connfd)
         }
     }
     // reactor
@@ -394,10 +405,13 @@ bool webserver::dealwith_write(int connfd){
     if(actor_model == proactor){
         bool ret = http_conns[connfd].write_to_socket();
         if(ret){
-           adjust_timernode(connfd);
+        //    LOG_INFO("%s%d","write to socket sucess and adjust tiemrnode the sockfd is ",connfd)
+            adjust_timernode(connfd);
         }
         // 失败
         else {
+            LOG_ERROR("%s%d","write to socket failure close connection and remove timernode the sockfd is ",connfd)
+            remove_timernode(connfd);
             http_conns[connfd].close_connection();
         }
     }
@@ -447,7 +461,7 @@ void webserver::events_loop(){
             break;
         }
 
-     //   LOG_INFO("%s%d%s","Epoll wait totally ",num," events trigger")
+    //    LOG_INFO("%s%d%s","Epoll wait totally ",num," events trigger")
 
         // 判断每一个事件
         for(int i = 0; i < num; ++i){
@@ -460,7 +474,15 @@ void webserver::events_loop(){
             }
             // 错误
             else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR) ){
-           //     LOG_INFO("%s","connection rd hup or error")
+              
+              /*  if(events[i].events & EPOLLRDHUP){
+                    LOG_WARN("%s","epoll RDHUP")
+                } else if (events[i].events & EPOLLHUP){
+                    LOG_WARN("%s","epoll HUP")
+                } else if (events[i].events & EPOLLERR){
+                    LOG_WARN("%s","epoll ERR")
+                }
+                */
                 remove_timernode(sockfd);
                 http_conns[sockfd].close_connection();
             }
@@ -483,7 +505,7 @@ void webserver::events_loop(){
         }
         if(time_out){
             timers->dealwith_alarm();
-         //   LOG_INFO("%s", "deal with timeout");
+        //    LOG_INFO("%s", "deal with timeout");
             time_out = false;
         }
     }

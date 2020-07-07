@@ -37,7 +37,7 @@ void tools::epoll_remove(int epollfd,int fd){
 void tools::epoll_mod(int epollfd,int fd,int ev,bool one_shot,bool ET){
     epoll_event event;
     event.data.fd = fd;
-    event.events |= ev;
+    event.events = ev | EPOLLRDHUP;
     if(one_shot){
         event.events |= EPOLLONESHOT;
     }

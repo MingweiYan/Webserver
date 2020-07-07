@@ -19,7 +19,7 @@ list_timer::~list_timer(){}
 // 向定时器列表中插入一个定时器节点
 void list_timer::add(timer_node* timer){
     if(timer == NULL){
-        LOG_WARN("add a NULL timer node");
+        LOG_WARN("add a NULL timer node to the list_timer");
         return ;
     }
     m_lock.lock();
@@ -35,7 +35,7 @@ void list_timer::remove(timer_node* timer){
     m_lock.lock();
     auto iter = toIter.find(timer->sockfd);
     if(iter == toIter.end()){
-        LOG_WARN("delete a non-exist timer node");
+        LOG_WARN("delete a non-exist timer node in the list_timer");
         return;
     } 
     timer_list.erase(iter->second);
@@ -52,7 +52,7 @@ void list_timer::tick(){
     m_lock.lock();
     time_t now = time(NULL);
     for(auto iter = timer_list.begin(); iter!= timer_list.end(); ++iter){
-        if( (*iter)->expire_time < now){
+        if( (*iter)->expire_time < now && (*iter)->conn ){
             execute(*iter);
         }
     }

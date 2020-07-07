@@ -35,7 +35,6 @@ int main(int argc,char** argv){
 
     server.printSetting();
     
-    
     server.events_loop();
 
 
