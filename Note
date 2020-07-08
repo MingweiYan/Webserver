@@ -1,11 +1,8 @@
 #1 webserver的工作函数  对于  reactor模式下的写是否能正常使用等待测试
-#3 http 没有提供读写状态变量  没有地址
+
 
 
 #12 webserver  接受连接时 ET模式 重复读 读到合适结束  且返回值存在问题
-
-#15  judge 里 不应该是 GET 吗 为什么是 POST
-
 
 
 
@@ -28,3 +25,7 @@ Done:
     #13 webserver  信号处理函数  发送信号 类型转换
 
     #11  deal_timer  以及定义在 util的cb_func
+
+    #15  judge 里 不应该是 GET 吗 为什么是 POST
+
+    #3 http 没有提供读写状态变量  没有地址

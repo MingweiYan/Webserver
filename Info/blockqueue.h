@@ -73,6 +73,7 @@ public:
             bool ret = m_cond.wait(m_lock.get());
             // 条件变量出错
             if(!ret){
+                std::cout<<"blockqueue cond wait error ";
                 return false;
             }
         }

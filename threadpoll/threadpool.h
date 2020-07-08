@@ -93,6 +93,7 @@ public:
     bool put(T* work){
         m_lock.lock();
         if(cur_work_size >= max_work_size){
+            LOG_ERROR("%s","can not put a work, threadpoll worklist is full ")
             m_lock.unlock();
             return false;
         }
@@ -107,6 +108,7 @@ public:
     bool get(T* &  work){
         m_lock.lock();
         if(cur_work_size <= 0){
+            LOG_ERROR("%s","can not get a work, threadpoll worklist is empty ")
             return false;
             m_lock.unlock();
         }

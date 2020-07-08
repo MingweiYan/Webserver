@@ -51,11 +51,12 @@ public:
     int slot(){
         return timer_slot;
     }
-    // 预留
+    // 设置超时处理函数
     void setfunc(std::function<void(timer_node*)> f){
         func = f;
     }
     void execute(timer_node* timer){
+    //    LOG_INFO("%s%d", "deal with timeout connection who is ",timer->sockfd)
         func(timer);
     }
 };

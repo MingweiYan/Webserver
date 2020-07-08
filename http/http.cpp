@@ -105,42 +105,39 @@ void http::init(){
 
 // 关闭连接
 void http::close_connection(){
+     LOG_INFO("%s%d","close http connection and sockfd is ",sockfd)
     http::tool.epoll_remove(http::epollfd,sockfd);
     close(sockfd);
+   // init();
     sockfd = -1;
     http::m_lock.lock();
     --http::cur_user_cnt;
-    http::m_lock.unlock(); 
-}
-// http的工作函数
-void http_work_fun(http* http_conn){
-    if(!http_conn->isProactor()){
-        if(http_conn->read_once()){
-
-        }
-    }
+    http::m_lock.unlock();   
 }
 void http::process(){
     // 处理请求报文 得到请求
     REQUEST_STATE state = process_read();
     // 没得到有效的请求  继续读
     if(state == NO_REQUEST){
+        LOG_ERROR("%s%d","parse request not get valid request registrer epollin and onshot the sockfd is ",sockfd)
         http::tool.epoll_mod(http::epollfd,sockfd,EPOLLIN,true,epoll_trigger_model == ET );
         return ;
     }
     // 状态行和首部行放入写缓存  映射文件
     bool ret = process_write(state);
     if(!ret){
+        LOG_ERROR("%s%d","write to buf failed the sockfd is ",sockfd)
         close_connection();
     }
     // 注册写事件
+  //  LOG_INFO("%s%d","finish process read and write register EPOLLOUT the sockfd is ",sockfd)
     http::tool.epoll_mod(http::epollfd,sockfd,EPOLLOUT,true,epoll_trigger_model == ET );
 }
 // 从socket读取信息到读缓存  根据ET和LT选择不同的读取方式
 bool http::read_once(){
     // 缓存区已满 直接返回
     if(cur_rd_idx > READ_BUFFER_SIZE){
-        LOG_WARN("s%","read bufer is full")
+        LOG_WARN("s%"," http read bufer is full")
         return false;
     }
     int bytes_recv = 0;
@@ -156,6 +153,7 @@ bool http::read_once(){
             } 
             else if (bytes_recv == 0){
                 // 关闭连接
+                 LOG_WARN("s%","read while http is closed")
                 return false;
             }
             cur_rd_idx += bytes_recv;
@@ -346,6 +344,7 @@ REQUEST_STATE http::do_request(){
         strcpy(tail_url,"/register.html");
         strncpy(native_request_url+len,tail_url,strlen(tail_url));
         free(tail_url);
+     //   LOG_INFO("%s","request register page")
     }
     // 登录页面
     else if(*(p+1) == '1'){
@@ -353,6 +352,7 @@ REQUEST_STATE http::do_request(){
         strcpy(tail_url, "/log.html");
         strncpy(native_request_url+len,tail_url,strlen(tail_url));
         free(tail_url);
+       // LOG_INFO("%s","request login page")
     }
     // 登录
     else if(*(p+1) == '2'){
@@ -372,6 +372,7 @@ REQUEST_STATE http::do_request(){
             strcpy(request_url,"/logError.html");
         }
         strncpy(native_request_url + len, request_url, strlen(request_url)); 
+     //   LOG_INFO("%s","try to login")
     } 
     // 注册
     else if(*(p+1) == '3'){
@@ -411,6 +412,7 @@ REQUEST_STATE http::do_request(){
             strcpy(request_url,"/registerError.html");
         }
         strncpy(native_request_url + len, request_url, strlen(request_url)); 
+     //   LOG_INFO("%s","request to signup")
     }
     // 请求图片
     else if(*(p+1) == '4'){
@@ -418,6 +420,7 @@ REQUEST_STATE http::do_request(){
         strcpy(tail_url, "/picture.html");
         strncpy(native_request_url+len,tail_url,strlen(tail_url));
         free(tail_url);
+      //  LOG_INFO("%s","request picture page")
     }
     // 请求视频
     else if(*(p+1) == '5'){
@@ -425,6 +428,7 @@ REQUEST_STATE http::do_request(){
         strcpy(tail_url, "/video.html");
         strncpy(native_request_url+len,tail_url,strlen(tail_url));
         free(tail_url);
+     //   LOG_INFO("%s","request movie page")
     }
     // 请求歌曲
     else if(*(p+1) == '6'){
@@ -432,10 +436,12 @@ REQUEST_STATE http::do_request(){
         strcpy(tail_url, "/music.html");
         strncpy(native_request_url+len,tail_url,strlen(tail_url));
         free(tail_url);
+    //    LOG_INFO("%s","request music page")
     }
     // 其他情况  只有/  起始界面 和注册登录完成的界面
     else{
         strncpy(native_request_url + len, request_url, strlen(request_url));
+     //   LOG_INFO("%s","request default page")
     }
     
         
@@ -470,6 +476,7 @@ void http::unmmap(){
 bool http::add_line(const char* format, ...){
     // 缓存已满
     if(cur_wr_idx >= WRITE_BUFFER_SIZE){
+        LOG_WARN("%s%d","add line to buf failure buf is full sockfd is ",sockfd)
         return false;
     }
     va_list va;
@@ -478,6 +485,7 @@ bool http::add_line(const char* format, ...){
     // 缓存区不够
     if(len >= (WRITE_BUFFER_SIZE-cur_wr_idx-1) ){
         va_end(va);
+        LOG_WARN("%s%d","add line to buf failure buf is full sockfd is ",sockfd)
         return false;
     }
     cur_wr_idx += len;
@@ -572,9 +580,14 @@ bool http::process_write(REQUEST_STATE state){
 bool http::write_to_socket(){
     // 已经写完了
     if(bytes_to_send <= 0){
+        unmmap();
         http::tool.epoll_mod(http::epollfd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
-        init();
-        return true;
+        LOG_INFO("%s%d%s","        finish write to socket sockfd ",sockfd,KeepAlive ? " is choosing keep alive" :" is choosing close")
+        if(KeepAlive){
+            init();
+            return true;
+        }
+        return false;
     }
     // 没写完 
     while(1){
@@ -602,11 +615,12 @@ bool http::write_to_socket(){
             m_iv[0].iov_len = m_iv[0].iov_len - bytes_have_send;
         }
         // 发送完毕
-        if(bytes_to_send<=0){
+        if(bytes_to_send <= 0){
             unmmap();
             http::tool.epoll_mod(http::epollfd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
+            LOG_INFO("%s%d%s","  finish write to socket sockfd ",sockfd,KeepAlive ? " is choosing keep alive" :" is choosing close")
             if(KeepAlive){
-                init();
+                init(); 
                 return true;
             }
             return false;
