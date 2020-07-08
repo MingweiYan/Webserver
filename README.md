@@ -4,6 +4,8 @@
  - 命令行  
     ./server  [-p port]  [-l LOGWrite] [-m TRIGMode] [-o OPT_LINGER] [-s sql_num] [-t thread_num] [-c close_log] [-a actor_model] 
 
+    默认 ./server -p 1122 -l 0 -m 1 -o 0 -s 8 -t 8 -c 1 -a 1
+    
     * -p    设置服务器端口号   
     * -l    异步写开关 0关闭 非0打开
     * -m    套接字的触发模式
@@ -18,7 +20,14 @@
     * -a    并发处理模式  0 是reactor  1是 proactor 
 
 - webbench
-    ./webbench -2 -c 10 -t 30 http://127.0.0.1:9006/
+    ./webbench -2 -c 10000 -t 5 http://127.0.0.1:9006/
+
+# 测试
+
+-   默认状态
+
+          
+
 
 # 依赖关系
 
