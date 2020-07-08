@@ -5,10 +5,11 @@ int tools::pipefd[2] = {0,0};
 
 // 设置文件描述符非阻塞
 int tools::setnonblocking(int fd){
-    int pre = fcntl(fd,F_GETFL);
-    int cur = pre | O_NONBLOCK;
-    fcntl(fd,F_SETFL, cur);
-    return pre;
+
+    int old_option = fcntl(fd, F_GETFL);
+    int new_option = old_option | O_NONBLOCK;
+    fcntl(fd, F_SETFL, new_option);
+    return old_option;
 }
 // 在epoll中注册事件
 void tools::epoll_add(int epollfd, int fd,bool read,bool one_shot,bool ET){
@@ -17,8 +18,7 @@ void tools::epoll_add(int epollfd, int fd,bool read,bool one_shot,bool ET){
     if(read){
         event.events  = EPOLLIN | EPOLLRDHUP;
     } else {
-        // 这里写 是否要加入 RDHUP
-        event.events = EPOLLOUT ;
+        event.events = EPOLLOUT | EPOLLRDHUP ;
     }
     if(one_shot){
         event.events |= EPOLLONESHOT;

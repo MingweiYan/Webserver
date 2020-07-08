@@ -23,19 +23,21 @@ bool info::init(bool LogOpen_,std::string file_name,int maxline_perfile,int buf_
     max_file_line = maxline_perfile;
     write_buf_size = buf_size;
     // 异步写
-    if(queue_size>0){
+    if(queue_size >0 ){
+        // 标志位 和 阻塞队列
         isAsyn = true;
         std::unique_ptr< blockqueue<std::string> > tmp (new blockqueue<std::string>(queue_size) ) ;
-        lines_to_write = std::move(tmp) ; 
+        lines_to_write = std::move(tmp); 
+        // 异步写线程
         pthread_t tid;
         int ret = pthread_create(&tid,NULL,pthread_init_write,NULL);
         if(ret!=0){
-            std::cout<<"pthread create info asyn failure"<<std::endl;
+            std::cout<<" create info asyn pthread failure"<<std::endl;
             throw std::exception();
         }
         ret = pthread_detach(tid);
         if(ret!=0){
-            std::cout<<"pthread detach info asyn failure"<<std::endl;
+            std::cout<<" detach info asyn pthread failure"<<std::endl;
             throw std::exception();
         }
     }
@@ -66,6 +68,7 @@ bool info::init(bool LogOpen_,std::string file_name,int maxline_perfile,int buf_
     // 打开文件 
     fp = fopen(log_full_name,"a");
     if(fp==NULL){
+        std::cout << " open log file failure" << std::endl;
         return false;
     }
     return true;
@@ -84,6 +87,7 @@ void info::asyn_write(){
         m_lock.unlock();
     }
     // 异步写失败了  关闭异步写
+    std::cout<<"cond error casuing log asyn write failure"<<std::endl;
     isAsyn = false;
 }
 // 同步写函数   

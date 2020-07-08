@@ -105,10 +105,10 @@ void http::init(){
 
 // 关闭连接
 void http::close_connection(){
-    // LOG_INFO("%s%d","close http connection and sockfd is ",sockfd)
+     LOG_INFO("%s%d","close http connection and sockfd is ",sockfd)
     http::tool.epoll_remove(http::epollfd,sockfd);
     close(sockfd);
-    init();
+   // init();
     sockfd = -1;
     http::m_lock.lock();
     --http::cur_user_cnt;
@@ -119,7 +119,7 @@ void http::process(){
     REQUEST_STATE state = process_read();
     // 没得到有效的请求  继续读
     if(state == NO_REQUEST){
-        LOG_INFO("%s%d","parse request not get valid request registrer epollin and onshot the sockfd is ",sockfd)
+        LOG_ERROR("%s%d","parse request not get valid request registrer epollin and onshot the sockfd is ",sockfd)
         http::tool.epoll_mod(http::epollfd,sockfd,EPOLLIN,true,epoll_trigger_model == ET );
         return ;
     }
@@ -582,7 +582,7 @@ bool http::write_to_socket(){
     if(bytes_to_send <= 0){
         unmmap();
         http::tool.epoll_mod(http::epollfd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
-     //   LOG_INFO("%s%d%s","finish write to socket sockfd ",sockfd,KeepAlive ? " is choosing keep alive" :" is choosing close")
+        LOG_INFO("%s%d%s","        finish write to socket sockfd ",sockfd,KeepAlive ? " is choosing keep alive" :" is choosing close")
         if(KeepAlive){
             init();
             return true;
@@ -618,7 +618,7 @@ bool http::write_to_socket(){
         if(bytes_to_send <= 0){
             unmmap();
             http::tool.epoll_mod(http::epollfd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
-        //    LOG_INFO("%s%d%s","finish write to socket sockfd ",sockfd,KeepAlive ? " is choosing keep alive" :" is choosing close")
+            LOG_INFO("%s%d%s","  finish write to socket sockfd ",sockfd,KeepAlive ? " is choosing keep alive" :" is choosing close")
             if(KeepAlive){
                 init(); 
                 return true;

@@ -153,6 +153,8 @@ void webserver::init_log(){
     } else{
         info::getInstance()->init(LogOpen,"./ServerLog",800000,2000,0);
     }
+    LOG_STR(" /***********************************************************************************************/")
+    LOG_STR("                                                                                                 ")
     LOG_INFO("%s","initialize log function");   
 }
 // 初始化mysql 
@@ -226,7 +228,7 @@ void webserver::init_listen(){
     tool.epoll_add(epollfd,pipefd[0],true,false,false);
     tool.setnonblocking(pipefd[0]);
     //  设置信号
-    tool.set_sigfunc(SIGPIPE,SIG_IGN,false);
+    tool.set_sigfunc(SIGPIPE,SIG_IGN,true);
     tool.set_sigfunc(SIGALRM,sig_handler,false);
     tool.set_sigfunc(SIGTERM,sig_handler,false);
     
@@ -274,7 +276,7 @@ void webserver::remove_timernode(int fd){
     timer_node* timer = &timer_nodes[fd];
     timers->remove(timer);
     timer_nodes[fd].clear();
- //   LOG_INFO("%s%d","remove timer node whose sockfd is ",fd)
+    LOG_INFO("%s%d","remove timer node whose sockfd is ",fd)
 }
 // 定时器处理
 void webserver::timer_handler(){
@@ -283,9 +285,10 @@ void webserver::timer_handler(){
 }
 // 定时器超时处理函数
 void webserver::timeout_handler(timer_node* node){
-    remove_timernode(node->sockfd);
+    int fd = node->sockfd;
+    remove_timernode(fd);
     node->conn->close_connection();
-    
+    toSockfd[ &http_conns[fd] ] = 0;
 }
 
 /*
@@ -318,7 +321,7 @@ bool webserver::accpet_connection(){
             toSockfd[ &http_conns[connfd] ] = connfd;
         }
         add_timernode(connfd);
-    //    LOG_INFO("%s%d","establish a new connection, sockfd is ",connfd)
+        LOG_INFO("%s%d","LT listen fd establish a new connection, sockfd is ",connfd)
     }
     // ET + LT   ET + ET  listen ET
     else{
@@ -343,6 +346,7 @@ bool webserver::accpet_connection(){
                 toSockfd[ &http_conns[connfd] ] = connfd;
             }
             add_timernode(connfd);
+            LOG_INFO("%s%d","ET listen fd establish a new connection, sockfd is ",connfd)
         }
     }
   //  LOG_INFO("%s","accept a new connection")
@@ -355,10 +359,12 @@ bool webserver::dealwith_signal(){
     int ret = recv(pipefd[0], signals, sizeof(signals), 0);
     // 出错
     if (ret == -1){
+        LOG_ERROR("%s%d","recv signal from pipe failed the errno is ",errno)
         return false;
     }
     // 关闭
     else if (ret == 0){
+        LOG_ERROR("%s","recv signal from pipe failed pipe is closed ")
         return false;
     }
     else{
@@ -384,13 +390,14 @@ bool webserver::dealwith_read(int connfd){
             m_threadpoll->put(&http_conns[connfd]);
          // http_conns[connfd].process();
             adjust_timernode(connfd);
-        //    LOG_INFO("%s%d","read_once sucess the sockfd is ",connfd)
+            LOG_INFO("%s%d","proactor read from socket sucess the sockfd is ",connfd)
         }
         // 失败
         else {
             remove_timernode(connfd);
             http_conns[connfd].close_connection();
-        //    LOG_WARN("%s%d","proactor http read_once failure the sockfd is ",connfd)
+            toSockfd[ &http_conns[connfd]] = 0;
+            LOG_WARN("%s%d","proactor http read from socket failure the sockfd is ",connfd)
         }
     }
     // reactor
@@ -405,14 +412,15 @@ bool webserver::dealwith_write(int connfd){
     if(actor_model == proactor){
         bool ret = http_conns[connfd].write_to_socket();
         if(ret){
-        //    LOG_INFO("%s%d","write to socket sucess and adjust tiemrnode the sockfd is ",connfd)
+            LOG_INFO("%s%d","write to socket sucess and adjust tiemrnode the sockfd is ",connfd)
             adjust_timernode(connfd);
         }
         // 失败
         else {
-            LOG_ERROR("%s%d","write to socket failure close connection and remove timernode the sockfd is ",connfd)
+         //   LOG_ERROR("%s%d","write to socket failure close connection and remove timernode the sockfd is ",connfd)
             remove_timernode(connfd);
             http_conns[connfd].close_connection();
+            toSockfd[ &http_conns[connfd]] = 0;
         }
     }
     // reactor
@@ -435,11 +443,13 @@ void webserver::http_work_func(http* conn){
         else {
             conn->close_connection();
             remove_timernode(toSockfd[conn]);
+            toSockfd[conn] = 0;
         }
         ret = conn->write_to_socket();
         if(!ret){
             conn->close_connection();
             remove_timernode(toSockfd[conn]);
+            toSockfd[conn] = 0;
         }
     } 
     // proactor
@@ -460,7 +470,6 @@ void webserver::events_loop(){
             LOG_ERROR("%s %s %d", "epoll failure","errno is",errno);
             break;
         }
-
     //    LOG_INFO("%s%d%s","Epoll wait totally ",num," events trigger")
 
         // 判断每一个事件
@@ -469,7 +478,7 @@ void webserver::events_loop(){
             int sockfd = events[i].data.fd;
             //新连接
             if(sockfd == listenfd){
-            //    LOG_INFO("%s","receive a new conncetion")
+                LOG_INFO("%s","epoll receive a new conncetion")
                 accpet_connection();
             }
             // 错误
@@ -485,6 +494,7 @@ void webserver::events_loop(){
                 */
                 remove_timernode(sockfd);
                 http_conns[sockfd].close_connection();
+                toSockfd[ &http_conns[sockfd]] = 0;
             }
             // 信号
             else if ( (sockfd == pipefd[0]) && (events[i].events & EPOLLIN) ){
