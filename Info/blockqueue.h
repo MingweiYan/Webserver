@@ -34,7 +34,7 @@ public:
         }
         std::unique_ptr<T[]> p( new T[size] );
         res = std::move(p);
-        if(!p.get()){
+        if(!res.get()){
             std::cout<<" create blockqueue matix failure "<<std::endl;
             throw std::exception();
         }

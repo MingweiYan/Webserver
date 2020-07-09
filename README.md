@@ -2,10 +2,10 @@
 
 
  - 命令行  
-    ./server  [-p port]  [-l LOGWrite] [-m TRIGMode] [-o OPT_LINGER] [-s sql_num] [-t thread_num] [-c close_log] [-a actor_model] 
+    ./server  [-p port]  [-l LOGWrite] [-m TRIGMode] [-o OPT_LINGER] [-s sql_num] [-t thread_num] [-i close_log] [-a actor_model] 
     ./server -s 20 -t 20 -c 0
 
-    默认 ./server -p 1122 -l 0 -m 1 -o 0 -s 8 -t 8 -c 1 -a 1
+    默认 ./server -p 1122 -l 0 -m 1 -o 0 -s 8 -t 8 -i 1 -a 1
     
     * -p    设置服务器端口号   
     * -l    异步写开关 0关闭 非0打开
@@ -17,11 +17,11 @@
     * -o    优雅关闭 0 关闭 非0打开
     * -s    数据库连接数目
     * -t    线程池连接数目
-    * -c    关闭日志 0关闭 非0打开
+    * -i    关闭日志 0关闭 非0打开
     * -a    并发处理模式  0 是reactor  1是 proactor 
 
 - webbench
-    ./webbench -2 -c 10000 -t 5 http://127.0.0.1:9006/
+    ./webbench -2 -c 10000 -t 5 http://127.0.0.1:1122/
 
 # 测试
 

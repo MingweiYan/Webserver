@@ -116,7 +116,6 @@ private:
     static locker m_lock;
     static char* workdir;
     static std::unordered_map<std::string,std::string> users;
-    static tools  tool;
     static int epollfd;
     static int actor_model;
     static int epoll_trigger_model;
@@ -153,6 +152,8 @@ public:
     bool add_content_len(int size);
     bool add_blank_line();
     bool add_content(const char*);
+
+    int fd(){ return sockfd;}
 
     // 静态变量接口
     static void set_epoll_fd(int fd);

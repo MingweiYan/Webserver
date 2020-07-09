@@ -67,8 +67,6 @@ private:
     //线程池
     std::unique_ptr< threadpoll<http> >  m_threadpoll;
     int thread_size;
-    // 其他
-    tools tool;
     // 日志
     bool LogOpen;
     bool LogAsynWrite;
@@ -110,6 +108,6 @@ public:
 void sig_handler(int sig);
 void show_error(int connfd,const char* info);
 void init_static_member();
-
+void nonmember_timeout_handler (timer_node* cur);
 
 #endif

@@ -8,7 +8,7 @@
 
 // 直接发送错误信息 然后关闭连接
 void show_error(int connfd,const char* info){
-    send(connfd,info,sizeof(info),0);
+    send(connfd,info,strlen(info),0);
     close(connfd);
 }
 // 信号处理函数
@@ -17,12 +17,44 @@ void sig_handler(int sig){
     send(tools::pipefd[1],(char*) &sig,sizeof(sig),0);
     errno = pre_erro;
 }
-
+// 非成员函数版超时处理函数
 void nonmember_timeout_handler (timer_node* cur){
     cur->conn->close_connection();
     cur->clear();
-//    LOG_INFO("non-membertimeout func is called")
+    LOG_INFO("non-membertimeout func is called")
 }
+//
+// 非成员函数版的线程池的工作函数  
+void nonmember_http_work_func(http* conn){
+    // reactor
+    if(!conn->isProactor()){
+        // 读取
+        int ret = conn->read_once();
+        if(ret){
+            //  读取成功 进行处理
+            LOG_INFO("%s%d","reactor read from socket sucess the sockfd is ",conn->fd())
+            conn->process();
+        } 
+        else { // 读取失败 直接关闭
+            LOG_ERROR("%s","reactor read from socket error ")
+           conn->close_connection(); 
+        }
+        ret = conn->write_to_socket();
+        if(!ret){
+            LOG_ERROR("%s","reactor write to socket error ")
+            conn->close_connection(); 
+        }
+        LOG_INFO("%s%d","write to socket sucess and adjust tiemrnode the sockfd is ",conn->fd())
+    } 
+    // proactor
+    else{
+        conn->process();
+    }
+}
+
+
+
+
 
 /*
     构造和析构
@@ -67,7 +99,7 @@ webserver::~webserver(){
 void webserver::parse_arg(std::string dbuser,std::string dbpasswd,std::string dbname_, int argc , char** argv){
     int opt;
     // 冒号表示后面有值
-    // [-p port]  [-l LOGWrite] [-m TRIGMode] [-o OPT_LINGER] [-s sql_num] [-t thread_num] [-c close_log] [-a actor_model] 
+    // [-p port]  [-l LOGWrite] [-m TRIGMode] [-o OPT_LINGER] [-s sql_num] [-t thread_num] [-i close_log] [-a actor_model] 
 
     // 默认参数
     dbusername = dbuser;
@@ -81,7 +113,7 @@ void webserver::parse_arg(std::string dbuser,std::string dbpasswd,std::string db
     sql_conn_size = 8;
     thread_size = 8;
     actor_model = proactor;      
-    server_port =  9006;
+    server_port =  1122;
     timer_slot = TIMESLOT;
     stop_server = false;
     time_out = false;
@@ -96,7 +128,7 @@ void webserver::parse_arg(std::string dbuser,std::string dbpasswd,std::string db
             server_port = atoi(optarg);
             break;
         }
-        // Log  异步写 0 关闭 非0打开
+        // Log  异步写 0关闭 非0打开
         case 'l':{
             LogAsynWrite = atoi(optarg);
             break;
@@ -122,7 +154,7 @@ void webserver::parse_arg(std::string dbuser,std::string dbpasswd,std::string db
             break;
         }
         // Log 打开 0 关闭 非0打开
-        case 'c':{
+        case 'i':{
             LogOpen = atoi(optarg);
             break;
         }
@@ -141,7 +173,8 @@ void webserver::parse_arg(std::string dbuser,std::string dbpasswd,std::string db
 
 // 初始化线程库
 void webserver::init_threadpoll(){
-    std::function<void(http*)> func = std::bind(&webserver::http_work_func,this,std::placeholders::_1);
+   // std::function<void(http*)> func = std::bind(&webserver::http_work_func,this,std::placeholders::_1);
+    std::function<void(http*)> func = nonmember_http_work_func;
     std::unique_ptr< threadpoll<http> > p (new threadpoll<http>(func,thread_size,10000) );
     m_threadpoll = std::move(p);
     LOG_INFO("%s","initialize threadpoll function");  
@@ -203,12 +236,12 @@ void webserver::init_listen(){
     // LT + LT  LT + ET 
     if(trigueMode == 0 || trigueMode == 1){
         //  注册读  非oneshoot  LT  非阻塞
-        tool.epoll_add(epollfd,listenfd,true,false,false);
-        tool.setnonblocking(listenfd);
+        tools::getInstance()->epoll_add(epollfd,listenfd,true,false,false);
+        tools::getInstance()->setnonblocking(listenfd);
     } // ET + LT  ET + ET
     else{
-        tool.epoll_add(epollfd,listenfd,true,false,true);
-        tool.setnonblocking(listenfd);
+        tools::getInstance()->epoll_add(epollfd,listenfd,true,false,true);
+        tools::getInstance()->setnonblocking(listenfd);
     }
 
     http::set_epoll_fd(epollfd);
@@ -224,13 +257,13 @@ void webserver::init_listen(){
 
     assert(ret != -1 );
     // 写非阻塞
-    tool.setnonblocking(pipefd[1]);
-    tool.epoll_add(epollfd,pipefd[0],true,false,false);
-    tool.setnonblocking(pipefd[0]);
+    tools::getInstance()->setnonblocking(pipefd[1]);
+    tools::getInstance()->epoll_add(epollfd,pipefd[0],true,false,false);
+    tools::getInstance()->setnonblocking(pipefd[0]);
     //  设置信号
-    tool.set_sigfunc(SIGPIPE,SIG_IGN,true);
-    tool.set_sigfunc(SIGALRM,sig_handler,false);
-    tool.set_sigfunc(SIGTERM,sig_handler,false);
+    tools::getInstance()->set_sigfunc(SIGPIPE,SIG_IGN,true);
+    tools::getInstance()->set_sigfunc(SIGALRM,sig_handler,false);
+    tools::getInstance()->set_sigfunc(SIGTERM,sig_handler,false);
     
     LOG_INFO("%s","initialize pipe and signal")
 } 
@@ -238,7 +271,7 @@ void webserver::init_listen(){
 void webserver::init_timer(){
     std::unique_ptr<timer> tmp (new list_timer(TIMESLOT));
     timers = std::move(tmp);
-  // timers->setfunc(std::bind(&webserver::timeout_handler,this,std::placeholders::_1));
+    // timers->setfunc(std::bind(&webserver::timeout_handler,this,std::placeholders::_1));
     timers->setfunc(nonmember_timeout_handler);
     std::unique_ptr<timer_node[]> p ( new timer_node[MAX_FD] );
     timer_nodes = std::move(p);
@@ -286,6 +319,7 @@ void webserver::timer_handler(){
 // 定时器超时处理函数
 void webserver::timeout_handler(timer_node* node){
     int fd = node->sockfd;
+    LOG_INFO("%d%s",node->sockfd,"  is time out close connection and remove timer node")
     remove_timernode(fd);
     node->conn->close_connection();
     toSockfd[ &http_conns[fd] ] = 0;
@@ -328,7 +362,7 @@ bool webserver::accpet_connection(){
         while(true){
             int connfd = accept(listenfd,(sockaddr*)&client_addr,&client_addr_len);
             if (connfd < 0){
-                LOG_ERROR("%s:errno is:%d", "accept error", errno);
+                LOG_ERROR("%s%d", "accept a new connection error the errno is ", errno);
                 break;
             }
             if (http::cur_user_cnt >= MAX_FD){
@@ -415,9 +449,8 @@ bool webserver::dealwith_write(int connfd){
             LOG_INFO("%s%d","write to socket sucess and adjust tiemrnode the sockfd is ",connfd)
             adjust_timernode(connfd);
         }
-        // 失败
+        // 失败  或者读写完毕
         else {
-         //   LOG_ERROR("%s%d","write to socket failure close connection and remove timernode the sockfd is ",connfd)
             remove_timernode(connfd);
             http_conns[connfd].close_connection();
             toSockfd[ &http_conns[connfd]] = 0;
@@ -435,22 +468,27 @@ bool webserver::dealwith_write(int connfd){
 void webserver::http_work_func(http* conn){
     // reactor
     if(!conn->isProactor()){
+        // 读取
         int ret = conn->read_once();
         if(ret){
+            //  读取成功 进行处理
+            LOG_INFO("%s%d","reactor read from socket sucess the sockfd is ",conn->fd())
             conn->process();
         } 
-        // 读取失败 直接关闭
-        else {
+        else { // 读取失败 直接关闭
+            LOG_ERROR("%s","proactor read from socket failure ")
             conn->close_connection();
             remove_timernode(toSockfd[conn]);
             toSockfd[conn] = 0;
         }
         ret = conn->write_to_socket();
         if(!ret){
+            LOG_ERROR("%s","proactor write to socket failure ")
             conn->close_connection();
             remove_timernode(toSockfd[conn]);
             toSockfd[conn] = 0;
         }
+        LOG_INFO("%s%d","write to socket sucess and adjust tiemrnode the sockfd is ",conn->fd())
     } 
     // proactor
     else{
@@ -483,7 +521,6 @@ void webserver::events_loop(){
             }
             // 错误
             else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR) ){
-              
               /*  if(events[i].events & EPOLLRDHUP){
                     LOG_WARN("%s","epoll RDHUP")
                 } else if (events[i].events & EPOLLHUP){
@@ -492,6 +529,7 @@ void webserver::events_loop(){
                     LOG_WARN("%s","epoll ERR")
                 }
                 */
+                LOG_WARN("%s","connection is closed by clients")
                 remove_timernode(sockfd);
                 http_conns[sockfd].close_connection();
                 toSockfd[ &http_conns[sockfd]] = 0;
@@ -504,10 +542,12 @@ void webserver::events_loop(){
                     LOG_ERROR("%s", "dealsignal failure");
                 }
             }
+            // 可读
             else if (events[i].events & EPOLLIN){
              //   LOG_INFO("%s","read event")
                 dealwith_read(sockfd);
             }
+            // 可写
             else if (events[i].events & EPOLLOUT){
               //   LOG_INFO("%s","write event")
                 dealwith_write(sockfd);
@@ -544,11 +584,11 @@ void webserver::printSetting(){
                 LOG_INFO("%s","Opps Unkonwn Trigger mode ")
                 break;
             }
-    LOG_INFO("%s%s","Log write is ",LogAsynWrite ? "asynronization" :"synchronization")
-    LOG_INFO("%s%s","reactor is ",actor_model == proactor ? "proactor" :"reactor")
-    LOG_INFO("%s%d","mysql connection number is ",sql_conn_size)
-    LOG_INFO("%s%d","threadpoll connection number is ",thread_size)
-    LOG_INFO("%s%s","server linger is ",sock_linger ? "opened" :"closed")
+    LOG_INFO("%s%s","Log write : ",LogAsynWrite ? "asynronization" :"synchronization")
+    LOG_INFO("%s%s","actor model : ",actor_model == proactor ? "proactor" :"reactor")
+    LOG_INFO("%s%d","mysql connection number : ",sql_conn_size)
+    LOG_INFO("%s%d","threadpoll connection number : ",thread_size)
+    LOG_INFO("%s%s","server linger : ",sock_linger ? "opened" :"closed")
     LOG_STR(" /***********************************************************************************************/")
     LOG_STR("                                                                                                 ")
 }

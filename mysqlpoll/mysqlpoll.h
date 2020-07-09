@@ -28,9 +28,8 @@ private:
     std::string dbpasswd;
     std::string dbname; 
     // 构造函数
-    
-public:
     mysqlpoll(){};
+public:
     ~mysqlpoll();
     static mysqlpoll* getInstance();
     MYSQL* get_connection();

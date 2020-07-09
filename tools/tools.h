@@ -15,9 +15,11 @@
 class tools{
 
 private:
+    tools(){};
     
-
 public:
+    // 单例模式
+    static tools * getInstance();
     // epoll相关
     int setnonblocking(int fd);
     void epoll_add(int epollfd, int fd,bool read,bool one_shot,bool ET);

@@ -3,6 +3,12 @@
 
 int tools::pipefd[2] = {0,0};
 
+// 单例模式
+tools* tools::getInstance(){
+        static tools instance;
+        return &instance;
+}
+
 // 设置文件描述符非阻塞
 int tools::setnonblocking(int fd){
 

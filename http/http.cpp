@@ -25,7 +25,6 @@ int http::cur_user_cnt = 0;
 char* http::workdir = NULL;
 int http::epollfd = 0;
 locker http::http::m_lock = locker();
-tools http::tool = tools();
 std::unordered_map<std::string,std::string> http::users = std::unordered_map<std::string,std::string>();
 int http::actor_model = proactor;
 int http::epoll_trigger_model = ET;
@@ -71,8 +70,8 @@ void http::init(int sockfd_,int TriggerMode_){
     sockfd = sockfd_;
     epoll_trigger_model = TriggerMode_;
     // 添加到epoll
-    http::tool.epoll_add(http::epollfd,sockfd,true,true,epoll_trigger_model == ET);
-    http::tool.setnonblocking(sockfd);
+    tools::getInstance()->epoll_add(http::epollfd,sockfd,true,true,epoll_trigger_model == ET);
+    tools::getInstance()->setnonblocking(sockfd);
     init();
     http::m_lock.lock();
     ++http::cur_user_cnt;
@@ -105,8 +104,8 @@ void http::init(){
 
 // 关闭连接
 void http::close_connection(){
-     LOG_INFO("%s%d","close http connection and sockfd is ",sockfd)
-    http::tool.epoll_remove(http::epollfd,sockfd);
+    LOG_INFO("%s%d","close http connection and sockfd is ",sockfd)
+    tools::getInstance()->epoll_remove(http::epollfd,sockfd);
     close(sockfd);
    // init();
     sockfd = -1;
@@ -120,7 +119,7 @@ void http::process(){
     // 没得到有效的请求  继续读
     if(state == NO_REQUEST){
         LOG_ERROR("%s%d","parse request not get valid request registrer epollin and onshot the sockfd is ",sockfd)
-        http::tool.epoll_mod(http::epollfd,sockfd,EPOLLIN,true,epoll_trigger_model == ET );
+        tools::getInstance()->epoll_mod(http::epollfd,sockfd,EPOLLIN,true,epoll_trigger_model == ET );
         return ;
     }
     // 状态行和首部行放入写缓存  映射文件
@@ -129,9 +128,9 @@ void http::process(){
         LOG_ERROR("%s%d","write to buf failed the sockfd is ",sockfd)
         close_connection();
     }
-    // 注册写事件
+    // 完成写后注册写事件
   //  LOG_INFO("%s%d","finish process read and write register EPOLLOUT the sockfd is ",sockfd)
-    http::tool.epoll_mod(http::epollfd,sockfd,EPOLLOUT,true,epoll_trigger_model == ET );
+    tools::getInstance()->epoll_mod(http::epollfd,sockfd,EPOLLOUT,true,epoll_trigger_model == ET );
 }
 // 从socket读取信息到读缓存  根据ET和LT选择不同的读取方式
 bool http::read_once(){
@@ -578,24 +577,25 @@ bool http::process_write(REQUEST_STATE state){
 }
 // 写函数
 bool http::write_to_socket(){
-    // 已经写完了
+    // 如果写完
     if(bytes_to_send <= 0){
-        unmmap();
-        http::tool.epoll_mod(http::epollfd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
-        LOG_INFO("%s%d%s","        finish write to socket sockfd ",sockfd,KeepAlive ? " is choosing keep alive" :" is choosing close")
-        if(KeepAlive){
-            init();
-            return true;
+            unmmap();
+            tools::getInstance()->epoll_mod(http::epollfd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
+            LOG_INFO("%s%d%s","finish write to socket sockfd ",sockfd,KeepAlive ? " is choosing keep alive" :" is choosing close")
+            if(KeepAlive){
+                init(); 
+                return true;
+            }
+            // return false 表明关闭连接
+            return false;
         }
-        return false;
-    }
-    // 没写完 
-    while(1){
+    // 否则写
+    while( true) {
         int bytes = writev(sockfd,m_iv,m_iv_cnt);
         if(bytes < 0){
             if(errno == EAGAIN){
                 // 缓存区满了  重置为 oneshoot的 OUT
-                http::tool.epoll_mod(http::epollfd, sockfd,EPOLLOUT,true,epoll_trigger_model ==ET);
+                tools::getInstance()->epoll_mod(http::epollfd, sockfd,EPOLLOUT,true,epoll_trigger_model ==ET);
                 return true;
             }
             // 否则出错 
@@ -617,12 +617,14 @@ bool http::write_to_socket(){
         // 发送完毕
         if(bytes_to_send <= 0){
             unmmap();
-            http::tool.epoll_mod(http::epollfd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
-            LOG_INFO("%s%d%s","  finish write to socket sockfd ",sockfd,KeepAlive ? " is choosing keep alive" :" is choosing close")
+            tools::getInstance()->epoll_mod(http::epollfd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
             if(KeepAlive){
                 init(); 
+                LOG_INFO("%s%d%s","finish write to socket sockfd ",sockfd, " is choosing keep alive")
                 return true;
             }
+            // return false 表明关闭连接
+            LOG_INFO("%s%d%s","finish write to socket sockfd ",sockfd, " is choosing close connection")
             return false;
         }
     }
