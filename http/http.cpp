@@ -104,6 +104,9 @@ void http::init(){
 
 // 关闭连接
 void http::close_connection(){
+    if(sockfd < 0){
+        return ;
+    }
     LOG_INFO("%s%d","close http connection and sockfd is ",sockfd)
     tools::getInstance()->epoll_remove(http::epollfd,sockfd);
     close(sockfd);
