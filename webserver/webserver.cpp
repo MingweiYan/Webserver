@@ -36,13 +36,13 @@ void nonmember_http_work_func(http* conn){
             conn->process();
         } 
         else { // 读取失败 直接关闭
-            LOG_ERROR("%s","reactor read from socket error ")
+           // LOG_ERROR("%s%d","reactor read from socket error sockfd is ",conn->fd())
           //  conn->close_connection(); 
             conn->inform_close();
         }
         ret = conn->write_to_socket();
         if(!ret){
-            LOG_ERROR("%s","reactor write to socket error ")
+          //  LOG_ERROR("%s%d","reactor write to socket error sockfd is ",conn->fd())
            // conn->close_connection(); 
             conn->inform_close();
         }
@@ -190,20 +190,18 @@ void webserver::init_timer(){
     timers->setfunc(nonmember_timeout_handler);
     std::unique_ptr<timer_node[]> p ( new timer_node[MAX_FD] );
     timer_nodes = std::move(p);
-    alarm(timer_slot);
-
+    
     // 创建管道
     int ret = socketpair(PF_UNIX,SOCK_STREAM,0,close_pipefd);
-
     tools::close_pipefd[0] = close_pipefd[0];
     tools::close_pipefd[1] = close_pipefd[1];
-
     assert(ret != -1 );
     // 写非阻塞
     tools::getInstance()->setnonblocking(close_pipefd[1]);
     tools::getInstance()->epoll_add(epollfd,close_pipefd[0],true,false,false);
     tools::getInstance()->setnonblocking(close_pipefd[0]);
 
+    alarm(timer_slot);
     LOG_INFO("%s","initialize timer")
 }
 // 初始化log
