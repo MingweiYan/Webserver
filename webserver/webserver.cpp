@@ -465,7 +465,7 @@ bool webserver::dealwith_close(){
     for(int i = 0; i < 1024; ++i){
         fds[i] = 0;
     }
-    int ret = recv(signal_pipefd[0], fds, sizeof(fds), 0);
+    int ret = recv(close_pipefd[0], fds, sizeof(fds), 0);
     // 出错
     if (ret == -1){
         LOG_ERROR("%s%d","recv close fd from pipe failed the errno is ",errno)
