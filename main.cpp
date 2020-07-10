@@ -19,9 +19,6 @@ int main(int argc,char** argv){
     
     
     server.parse_arg(dbuser,dbpasswd,dbname,argc,argv);
-
-    tools::pipefd[0] = 0;
-    tools::pipefd[1] = 0;
     
     server.init_log();
 

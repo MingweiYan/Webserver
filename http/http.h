@@ -154,6 +154,7 @@ public:
     bool add_content(const char*);
 
     int fd(){ return sockfd;}
+    void inform_close();
 
     // 静态变量接口
     static void set_epoll_fd(int fd);

@@ -650,3 +650,11 @@ void http::set_epoll_fd(int fd){
     http::actor_model = model;
     http::m_lock.unlock();
  }
+
+ //通知服务器关闭连接
+ void http::inform_close(){
+    m_lock.lock();
+    int fd = this->fd();
+    send(tools::close_pipefd[1],&fd,sizeof(fd),0);
+    m_lock.unlock();
+ }

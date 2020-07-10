@@ -27,8 +27,9 @@ public:
     void epoll_mod(int epoolfd,int fd,int event,bool one_shot,bool ET);
     // 信号相关
     void set_sigfunc(int sig,void(handler)(int), bool restrart);
-    
-    static int pipefd[2];
+    //  传递信号到主线程
+    static int signal_pipefd[2];
+    static int close_pipefd[2];
 
 };
 

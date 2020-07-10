@@ -1,7 +1,8 @@
 
 #include"../tools/tools.h"
 
-int tools::pipefd[2] = {0,0};
+int tools::signal_pipefd[2] = {0,0};
+int tools::close_pipefd[2] = {0,0};
 
 // 单例模式
 tools* tools::getInstance(){

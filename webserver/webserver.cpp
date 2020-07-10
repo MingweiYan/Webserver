@@ -14,7 +14,7 @@ void show_error(int connfd,const char* info){
 // 信号处理函数
 void sig_handler(int sig){
     int pre_erro = errno;
-    send(tools::pipefd[1],(char*) &sig,sizeof(sig),0);
+    send(tools::signal_pipefd[1],(char*) &sig,sizeof(sig),0);
     errno = pre_erro;
 }
 // 非成员函数版超时处理函数
@@ -37,12 +37,14 @@ void nonmember_http_work_func(http* conn){
         } 
         else { // 读取失败 直接关闭
             LOG_ERROR("%s","reactor read from socket error ")
-           conn->close_connection(); 
+          //  conn->close_connection(); 
+            conn->inform_close();
         }
         ret = conn->write_to_socket();
         if(!ret){
             LOG_ERROR("%s","reactor write to socket error ")
-            conn->close_connection(); 
+           // conn->close_connection(); 
+            conn->inform_close();
         }
         LOG_INFO("%s%d","write to socket sucess and adjust tiemrnode the sockfd is ",conn->fd())
     } 
@@ -77,9 +79,10 @@ webserver::~webserver(){
     
     close(epollfd);
     close(listenfd);
-    close(pipefd[1]);
-    close(pipefd[0]);
-
+    close(signal_pipefd[1]);
+    close(signal_pipefd[0]);
+    close(close_pipefd[1]);
+    close(close_pipefd[0]);
    /* for(timer_node* timer: timer_nodes){
         if(timer != nullptr){
             delete timer;
@@ -179,6 +182,30 @@ void webserver::init_threadpoll(){
     m_threadpoll = std::move(p);
     LOG_INFO("%s","initialize threadpoll function");  
 }
+// 初始化定时器
+void webserver::init_timer(){
+    std::unique_ptr<timer> tmp (new list_timer(TIMESLOT));
+    timers = std::move(tmp);
+   // timers->setfunc(std::bind(&webserver::timeout_handler,this,std::placeholders::_1));
+    timers->setfunc(nonmember_timeout_handler);
+    std::unique_ptr<timer_node[]> p ( new timer_node[MAX_FD] );
+    timer_nodes = std::move(p);
+    alarm(timer_slot);
+
+    // 创建管道
+    int ret = socketpair(PF_UNIX,SOCK_STREAM,0,close_pipefd);
+
+    tools::close_pipefd[0] = close_pipefd[0];
+    tools::close_pipefd[1] = close_pipefd[1];
+
+    assert(ret != -1 );
+    // 写非阻塞
+    tools::getInstance()->setnonblocking(close_pipefd[1]);
+    tools::getInstance()->epoll_add(epollfd,close_pipefd[0],true,false,false);
+    tools::getInstance()->setnonblocking(close_pipefd[0]);
+
+    LOG_INFO("%s","initialize timer")
+}
 // 初始化log
 void webserver::init_log(){
     if(LogAsynWrite){
@@ -195,8 +222,6 @@ void webserver::init_mysqlpoll(){
     mysqlpoll::getInstance()->init("localhost",dbusername,dbpassword,dbport,dbname,sql_conn_size);
     LOG_INFO("%s","initialize mysqlpoll function");  
 }
-
-
 // 初始化listen
 void webserver::init_listen(){
 
@@ -250,16 +275,16 @@ void webserver::init_listen(){
     LOG_INFO("%s","initialize epoll fd")
 
     // 创建管道
-    ret = socketpair(PF_UNIX,SOCK_STREAM,0,pipefd);
+    ret = socketpair(PF_UNIX,SOCK_STREAM,0,signal_pipefd);
 
-    tools::pipefd[0] = pipefd[0];
-    tools::pipefd[1] = pipefd[1];
+    tools::signal_pipefd[0] = signal_pipefd[0];
+    tools::signal_pipefd[1] = signal_pipefd[1];
 
     assert(ret != -1 );
     // 写非阻塞
-    tools::getInstance()->setnonblocking(pipefd[1]);
-    tools::getInstance()->epoll_add(epollfd,pipefd[0],true,false,false);
-    tools::getInstance()->setnonblocking(pipefd[0]);
+    tools::getInstance()->setnonblocking(signal_pipefd[1]);
+    tools::getInstance()->epoll_add(epollfd,signal_pipefd[0],true,false,false);
+    tools::getInstance()->setnonblocking(signal_pipefd[0]);
     //  设置信号
     tools::getInstance()->set_sigfunc(SIGPIPE,SIG_IGN,true);
     tools::getInstance()->set_sigfunc(SIGALRM,sig_handler,false);
@@ -267,17 +292,38 @@ void webserver::init_listen(){
     
     LOG_INFO("%s","initialize pipe and signal")
 } 
-// 初始化定时器
-void webserver::init_timer(){
-    std::unique_ptr<timer> tmp (new list_timer(TIMESLOT));
-    timers = std::move(tmp);
-    // timers->setfunc(std::bind(&webserver::timeout_handler,this,std::placeholders::_1));
-    timers->setfunc(nonmember_timeout_handler);
-    std::unique_ptr<timer_node[]> p ( new timer_node[MAX_FD] );
-    timer_nodes = std::move(p);
-    alarm(timer_slot);
-    LOG_INFO("%s","initialize timer")
+// 输出配置的服务器信息
+void webserver::printSetting(){
+    LOG_INFO("%s %s %s %s","mysql username: ",dbusername.c_str()," mysql password: ",dbpassword.c_str())
+    LOG_INFO("%s %s %s %d","mysql databasename :",dbname.c_str()," mysql port: ",dbport)
+    LOG_INFO("%s%d","server port is ",server_port)
+    switch (trigueMode)
+            {
+            case 0:
+                LOG_INFO("%s","Trigger mode is listen LT + http_conn LT")
+                break;
+            case 1:
+                LOG_INFO("%s","Trigger mode is listen LT + http_conn ET")
+                break;
+            case 2:
+                LOG_INFO("%s","Trigger mode is listen ET + http_conn LT")
+                break;
+            case 3:
+                LOG_INFO("%s","Trigger mode is listen ET + http_conn ET")
+                break;
+            default:
+                LOG_INFO("%s","Opps Unkonwn Trigger mode ")
+                break;
+            }
+    LOG_INFO("%s%s","Log write : ",LogAsynWrite ? "asynronization" :"synchronization")
+    LOG_INFO("%s%s","actor model : ",actor_model == proactor ? "proactor" :"reactor")
+    LOG_INFO("%s%d","mysql connection number : ",sql_conn_size)
+    LOG_INFO("%s%d","threadpoll connection number : ",thread_size)
+    LOG_INFO("%s%s","server linger : ",sock_linger ? "opened" :"closed")
+    LOG_STR(" /***********************************************************************************************/")
+    LOG_STR("                                                                                                 ")
 }
+
 
 
 /*
@@ -319,10 +365,8 @@ void webserver::timer_handler(){
 // 定时器超时处理函数
 void webserver::timeout_handler(timer_node* node){
     int fd = node->sockfd;
-    LOG_INFO("%d%s",node->sockfd,"  is time out close connection and remove timer node")
-    remove_timernode(fd);
-    node->conn->close_connection();
-    toSockfd[ &http_conns[fd] ] = 0;
+    LOG_INFO("%d%s",fd,"  is time out close connection and remove timer node")
+    close_connection(fd);
 }
 
 /*
@@ -390,7 +434,7 @@ bool webserver::accpet_connection(){
 // 处理信号
 bool webserver::dealwith_signal(){
     char signals[1024];
-    int ret = recv(pipefd[0], signals, sizeof(signals), 0);
+    int ret = recv(signal_pipefd[0], signals, sizeof(signals), 0);
     // 出错
     if (ret == -1){
         LOG_ERROR("%s%d","recv signal from pipe failed the errno is ",errno)
@@ -415,6 +459,29 @@ bool webserver::dealwith_signal(){
     }
     return true;
 }
+// 处理关闭连接
+bool webserver::dealwith_close(){
+    int fds[1024] ;
+    for(int i = 0; i < 1024; ++i){
+        fds[i] = 0;
+    }
+    int ret = recv(signal_pipefd[0], fds, sizeof(fds), 0);
+    // 出错
+    if (ret == -1){
+        LOG_ERROR("%s%d","recv close fd from pipe failed the errno is ",errno)
+        return false;
+    }
+    // 关闭
+    else if (ret == 0){
+        LOG_ERROR("%s","recv close fd from pipe failed pipe is closed ")
+        return false;
+    }
+    for(int i = 0; i < 1024  && fds[i]>=0; ++i){
+        close_connection(fds[i]);
+        fds[i] = 0;
+    }
+    
+}
 // 处理读
 bool webserver::dealwith_read(int connfd){
     // proactor
@@ -428,9 +495,7 @@ bool webserver::dealwith_read(int connfd){
         }
         // 失败
         else {
-            remove_timernode(connfd);
-            http_conns[connfd].close_connection();
-            toSockfd[ &http_conns[connfd]] = 0;
+            close_connection(connfd);
             LOG_WARN("%s%d","proactor http read from socket failure the sockfd is ",connfd)
         }
     }
@@ -451,9 +516,7 @@ bool webserver::dealwith_write(int connfd){
         }
         // 失败  或者读写完毕
         else {
-            remove_timernode(connfd);
-            http_conns[connfd].close_connection();
-            toSockfd[ &http_conns[connfd]] = 0;
+            close_connection(connfd);
         }
     }
     // reactor
@@ -477,16 +540,12 @@ void webserver::http_work_func(http* conn){
         } 
         else { // 读取失败 直接关闭
             LOG_ERROR("%s","proactor read from socket failure ")
-            conn->close_connection();
-            remove_timernode(toSockfd[conn]);
-            toSockfd[conn] = 0;
+            close_connection(toSockfd[conn]);
         }
         ret = conn->write_to_socket();
         if(!ret){
             LOG_ERROR("%s","proactor write to socket failure ")
-            conn->close_connection();
-            remove_timernode(toSockfd[conn]);
-            toSockfd[conn] = 0;
+            close_connection(toSockfd[conn]);    
         }
         LOG_INFO("%s%d","write to socket sucess and adjust tiemrnode the sockfd is ",conn->fd())
     } 
@@ -495,6 +554,19 @@ void webserver::http_work_func(http* conn){
         conn->process();
     }
 }
+// 关闭一个连接
+void webserver::close_connection(int fd){
+   // m_lock.lock();
+    http* conn = &http_conns[fd];
+    conn->close_connection();
+    remove_timernode(fd);
+    toSockfd[conn] = 0;
+  //  m_lock.unlock();
+}
+
+
+
+
 
 /*
     主循环
@@ -530,12 +602,18 @@ void webserver::events_loop(){
                 }
                 */
                 LOG_WARN("%s","connection is closed by clients")
-                remove_timernode(sockfd);
-                http_conns[sockfd].close_connection();
-                toSockfd[ &http_conns[sockfd]] = 0;
+                close_connection(sockfd);
             }
             // 信号
-            else if ( (sockfd == pipefd[0]) && (events[i].events & EPOLLIN) ){
+            else if ( (sockfd == close_pipefd[0]) && (events[i].events & EPOLLIN) ){
+             //   LOG_INFO("%s","signal from pipe")
+                bool ret = dealwith_close();
+                if(!ret){
+                    LOG_ERROR("%s", "dealclose failure");
+                }
+            }
+            // 关闭连接
+            else if ( (sockfd == signal_pipefd[0]) && (events[i].events & EPOLLIN) ){
              //   LOG_INFO("%s","signal from pipe")
                 bool ret = dealwith_signal();
                 if(!ret){
@@ -561,35 +639,5 @@ void webserver::events_loop(){
     }
 }
 
-// 输出配置的服务器信息
-void webserver::printSetting(){
-    LOG_INFO("%s %s %s %s","mysql username: ",dbusername.c_str()," mysql password: ",dbpassword.c_str())
-    LOG_INFO("%s %s %s %d","mysql databasename :",dbname.c_str()," mysql port: ",dbport)
-    LOG_INFO("%s%d","server port is ",server_port)
-    switch (trigueMode)
-            {
-            case 0:
-                LOG_INFO("%s","Trigger mode is listen LT + http_conn LT")
-                break;
-            case 1:
-                LOG_INFO("%s","Trigger mode is listen LT + http_conn ET")
-                break;
-            case 2:
-                LOG_INFO("%s","Trigger mode is listen ET + http_conn LT")
-                break;
-            case 3:
-                LOG_INFO("%s","Trigger mode is listen ET + http_conn ET")
-                break;
-            default:
-                LOG_INFO("%s","Opps Unkonwn Trigger mode ")
-                break;
-            }
-    LOG_INFO("%s%s","Log write : ",LogAsynWrite ? "asynronization" :"synchronization")
-    LOG_INFO("%s%s","actor model : ",actor_model == proactor ? "proactor" :"reactor")
-    LOG_INFO("%s%d","mysql connection number : ",sql_conn_size)
-    LOG_INFO("%s%d","threadpoll connection number : ",thread_size)
-    LOG_INFO("%s%s","server linger : ",sock_linger ? "opened" :"closed")
-    LOG_STR(" /***********************************************************************************************/")
-    LOG_STR("                                                                                                 ")
-}
+
 

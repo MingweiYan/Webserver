@@ -43,11 +43,9 @@ private:
     int sql_conn_size;
     // 定时器相关
     std::unique_ptr<timer>  timers;
-    int pipefd[2];
+    int signal_pipefd[2];
+    int close_pipefd[2];
     time_t timer_slot;
-
-    //timer_node* to_timernode[MAX_FD];
-   // std::vector<timer_node*> timer_nodes;
     std::unique_ptr<timer_node[]> timer_nodes;
     //epoll 相关
     int epollfd;
@@ -57,6 +55,7 @@ private:
     int server_port; 
     bool sock_linger;
     int trigueMode;
+    locker m_lock;
     //std::unordered_map<int,http> http_conns;
     std::unordered_map<http*,int> toSockfd;
     std::unique_ptr<http[]> http_conns;
@@ -74,13 +73,14 @@ public:
     // 构造
     webserver();
     ~webserver();
-    void parse_arg(std::string dbuser,std::string dbpasswd,std::string dbname, int argc, char* argv[]);
     // 初始化
+    void parse_arg(std::string dbuser,std::string dbpasswd,std::string dbname, int argc, char* argv[]);
     void init_log();
     void init_threadpoll();
     void init_mysqlpoll();
     void init_timer();
     void init_listen();
+    void printSetting();
     // 定时器相关
     void add_timernode(int fd);
     void adjust_timernode(int);
@@ -92,12 +92,15 @@ public:
     bool dealwith_signal();
     bool dealwith_read(int);
     bool dealwith_write(int);
+    bool dealwith_close();
     // 线程池相关
     void http_work_func(http* conn);
+    void close_connection(int fd);
     // 主循环
     void events_loop();
-    // 输出设置的信息
-    void printSetting();
+    
+    friend void nonmember_http_work_func(http*);
+    friend void nonmember_timeout_handler(timer_node*);
 
 };
 
