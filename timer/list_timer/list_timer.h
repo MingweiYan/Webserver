@@ -15,7 +15,6 @@ class list_timer : public timer{
 private:
     std::list<timer_node*> timer_list;
     std::unordered_map<int,decltype(timer_list.begin())> toIter;
-    locker m_lock;
 
 public:
     list_timer();

@@ -48,7 +48,7 @@ public:
          tick(); 
          alarm(timer_slot);
     }
-    int slot(){
+    virtual int slot(){
         return timer_slot;
     }
     // 设置超时处理函数

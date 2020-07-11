@@ -122,7 +122,7 @@ void webserver::parse_arg(std::string dbuser,std::string dbpasswd,std::string db
     time_out = false;
 
 
-    const char *str = "p:v:l:m:o:s:t:c:a:";
+    const char *str = "p:v:l:m:o:s:t:i:a:";
     while ( (opt = getopt(argc, argv, str)) != -1){
         
         switch (opt){
@@ -186,8 +186,8 @@ void webserver::init_threadpoll(){
 void webserver::init_timer(){
     std::unique_ptr<timer> tmp (new list_timer(TIMESLOT));
     timers = std::move(tmp);
-   // timers->setfunc(std::bind(&webserver::timeout_handler,this,std::placeholders::_1));
-    timers->setfunc(nonmember_timeout_handler);
+    timers->setfunc(std::bind(&webserver::timeout_handler,this,std::placeholders::_1));
+   // timers->setfunc(nonmember_timeout_handler);
     std::unique_ptr<timer_node[]> p ( new timer_node[MAX_FD] );
     timer_nodes = std::move(p);
     
@@ -201,7 +201,7 @@ void webserver::init_timer(){
     tools::getInstance()->epoll_add(epollfd,close_pipefd[0],true,false,false);
     tools::getInstance()->setnonblocking(close_pipefd[0]);
 
-    alarm(timer_slot);
+   // alarm(timer_slot);
     LOG_INFO("%s","initialize timer")
 }
 // 初始化log
@@ -388,7 +388,7 @@ bool webserver::accpet_connection(){
             return false;
         }
         // LT + ET    
-        if(trigueMode ==1){
+        if(trigueMode == 1){
             http_conns[connfd].init(connfd,ET);
             toSockfd[ &http_conns[connfd] ] = connfd;
         }
@@ -474,7 +474,8 @@ bool webserver::dealwith_close(){
         LOG_ERROR("%s","recv close fd from pipe failed pipe is closed ")
         return false;
     }
-    for(int i = 0; i < 1024  && fds[i]>=0; ++i){
+    for(int i = 0; i < 1024  && fds[i] > 0; ++i){
+        LOG_INFO("%s%d","close sockfd",fds[i])
         close_connection(fds[i]);
         fds[i] = 0;
     }
@@ -520,7 +521,7 @@ bool webserver::dealwith_write(int connfd){
     // reactor
     else {
         // 这里不考虑  线程池分读写状态
-        adjust_timernode(connfd);
+      //  adjust_timernode(connfd);
     }
 }
 
@@ -572,7 +573,7 @@ void webserver::close_connection(int fd){
 // 循环读取时间
 void webserver::events_loop(){
     while(!stop_server){
-
+      //  LOG_INFO("%s","epoll wait ")
         int num = epoll_wait(epollfd,events,MAX_EVENT_NUMBER,-1);
         if (num < 0 && errno != EINTR){
             LOG_ERROR("%s %s %d", "epoll failure","errno is",errno);

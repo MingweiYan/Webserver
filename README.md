@@ -24,10 +24,52 @@
     ./webbench -2 -c 10000 -t 5 http://127.0.0.1:1122/
 
 # 测试
+ 
+- canshuceshi
+|         | 默认状态 | yibu  | LT+LT | ET+LT  | ET+ET| log    | reactor |   
+|:-------:|:------:|:----: |:-----: |:-----:|:-----:| :----: |:-------:|
+|pages/min|372768  |235956 |411576  |445980 |449232 | 735000 | 273648  |
+|bytes/sec|4811665 |3042805|5309680 |5756545|5798240|9479800 | 3530612 |
+|requests |31063   |19659  |34295   |37165  |37436  | 61244  |22793    |
+|failed   | 1      |4      |3       |     0 |0      | 6      |11       | 
 
--   默认状态
+- zuiyoucanshu
 
-          
+$ webbench -c 10000 -t 5 -2 http://127.0.0.1:1122/
+    Webbench - Simple Web Benchmark 1.5
+    Copyright (c) Radim Kolar 1997-2004, GPL Open Source Software.
+
+    Request:
+    GET / HTTP/1.1
+    User-Agent: WebBench 1.5
+    Host: 127.0.0.1
+    Connection: close
+
+
+    Runing info: 10000 clients, running 5 sec.
+
+    Speed=998520 pages/min, 12894295 bytes/sec.
+    Requests: 83210 susceed, 0 failed.
+   
+
+- jixianceshi 
+
+$ webbench -c 13000 -t 5 -2 http://127.0.0.1:1122/
+	Webbench - Simple Web Benchmark 1.5
+	Copyright (c) Radim Kolar 1997-2004, GPL Open Source Software.
+
+	Request:
+	GET / HTTP/1.1
+	User-Agent: WebBench 1.5
+	Host: 127.0.0.1
+	Connection: close
+
+
+	Runing info: 13000 clients, running 5 sec.
+
+	Speed=1014804 pages/min, 13099515 bytes/sec.
+	Requests: 84567 susceed, 0 failed.
+
 
 
 # 依赖关系

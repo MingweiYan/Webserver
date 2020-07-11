@@ -580,19 +580,6 @@ bool http::process_write(REQUEST_STATE state){
 }
 // 写函数
 bool http::write_to_socket(){
-    // 如果写完
-    if(bytes_to_send <= 0){
-            unmmap();
-            tools::getInstance()->epoll_mod(http::epollfd, sockfd,EPOLLIN,true,epoll_trigger_model ==ET);
-            LOG_INFO("%s%d%s","finish write to socket sockfd ",sockfd,KeepAlive ? " is choosing keep alive" :" is choosing close")
-            if(KeepAlive){
-                init(); 
-                return true;
-            }
-            // return false 表明关闭连接
-            return false;
-        }
-    // 否则写
     while( true) {
         int bytes = writev(sockfd,m_iv,m_iv_cnt);
         if(bytes < 0){
@@ -603,7 +590,7 @@ bool http::write_to_socket(){
             }
             // 否则出错 
             unmmap();
-            LOG_ERROR("%s %d","write to socket error the errorno is",errno)
+            LOG_ERROR("%s %d%s% d","write to socket error the sockfd is",sockfd," the errorno is",errno)
             return false;
         }
         // 单次写完 更新结构体
