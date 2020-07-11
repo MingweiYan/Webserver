@@ -25,15 +25,17 @@
 
 # 测试
  
-- canshuceshi
-|         | 默认状态 | yibu  | LT+LT | ET+LT  | ET+ET| log    | reactor |   
+- 参数测试  
+
+|         | 默认状态|日志异步| LT+LT | ET+LT  | ET+ET| 关闭LOG | reactor |   
 |:-------:|:------:|:----: |:-----: |:-----:|:-----:| :----: |:-------:|
 |pages/min|372768  |235956 |411576  |445980 |449232 | 735000 | 273648  |
 |bytes/sec|4811665 |3042805|5309680 |5756545|5798240|9479800 | 3530612 |
 |requests |31063   |19659  |34295   |37165  |37436  | 61244  |22793    |
 |failed   | 1      |4      |3       |     0 |0      | 6      |11       | 
 
-- zuiyoucanshu
+
+- 最优参数
 
 $ webbench -c 10000 -t 5 -2 http://127.0.0.1:1122/
     Webbench - Simple Web Benchmark 1.5
@@ -52,7 +54,7 @@ $ webbench -c 10000 -t 5 -2 http://127.0.0.1:1122/
     Requests: 83210 susceed, 0 failed.
    
 
-- jixianceshi 
+- 极限测试 
 
 $ webbench -c 13000 -t 5 -2 http://127.0.0.1:1122/
 	Webbench - Simple Web Benchmark 1.5
@@ -76,15 +78,17 @@ $ webbench -c 13000 -t 5 -2 http://127.0.0.1:1122/
 
     g++ 中  A依赖B  A应该在B左边
 
-    blockqueue 依赖  lock
-    info  依赖  blockqueue  lock
-    mysqlpoll  依赖  info  和 lock
-    threadpoll 依赖 info 和lock
-    list_timer 依赖于lock 和 http
-    http 依赖 info  mysql 和 tool
-    webserver 依赖 所有
-
-    tool  和 lock 不依赖
+                webserver
+                /      \
+            http         \
+            /   \         \
+           /   mysqlpoll threadpoll  
+          /        \     /
+         /           info
+        /             /
+       /         blockqueue
+      /             /
+    tool          lock
 
     编译顺序  webserver list_timer http mysqlpoll threadpoll info blockqueue tool lock 
 
@@ -102,7 +106,7 @@ $ webbench -c 13000 -t 5 -2 http://127.0.0.1:1122/
     + sem 类封装信号量
         * sem(n);
         * bool wait();
-         *bool post();
+        * bool post();
 
     + cond 类封装条件变量
         * void signal();
@@ -110,12 +114,11 @@ $ webbench -c 13000 -t 5 -2 http://127.0.0.1:1122/
         * bool wait(pthread_mutex_t * locker); 
 
 
-
 - tools文件夹
 
     + tools类 实现epoll以及信号辅助函数
 
-        * 静态变量pipefd需要初始化和赋值
+        * static tools * getInstance();
         * int setnonblocking(int fd);
         * void epoll_add(int epollfd, int fd,bool read,bool one_shot,bool ET);
         * void epoll_remove(int epollfd,int fd);
@@ -128,30 +131,19 @@ $ webbench -c 13000 -t 5 -2 http://127.0.0.1:1122/
 
         * blockqueue(int size );
         * bool push_back(const T&); 
-            // 当循环数组已满时 返回false
+            - 当循环数组已满时 返回false
         * bool pop_front(T&);
-             // 当条件变量出错时 返回false  
+            - 当条件变量出错时 返回false  
         * void clear();
         * bool isFull();
         * bool empty();
 
-        * 条件变量的使用
-            while(cur_size <= 0){
-                bool ret = m_cond.wait(&m_lock);
-                // 条件变量出错
-                if(!ret){
-                    return false;
-                }
-            }
-            pop 时
-                1)   cur_size = 0  阻塞在wait  push之后broadcast就会继续取出一个元素
-                2）  cur_size > 0  不会阻塞 会取出一个元素
 
     + info类 单例模式 写一行记录到写缓存然后写入文件
     
         * static info* getInstance();
         * bool init(bool LogOpen,std::string file_name,int max_line_perfile,int write_buf_size,int queue_size);
-            // 打开文件出错时返回false
+            - 打开文件出错时返回false
         * void flush();
         * void write_line(int level, const char* format, ...);
         * bool isLogOpen();

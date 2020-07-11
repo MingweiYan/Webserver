@@ -23,37 +23,27 @@ private:
 public:
     // 构造函数
     blockqueue(int size){
+        //  初始化成员变量
         max_size = size;
         cur_size = 0;
         front = -1;
         back = -1;
-
+        //  输入参数有误
         if(size < 0){
-            std::cout<<"use negative initialize blockqueue"<<std::endl;
+            std::cerr<<"use negative initialize blockqueue"<<std::endl;
             throw std::exception();
         }
         std::unique_ptr<T[]> p( new T[size] );
         res = std::move(p);
         if(!res.get()){
-            std::cout<<" create blockqueue matix failure "<<std::endl;
+            std::cerr<<" create blockqueue matix failure "<<std::endl;
             throw std::exception();
         }
     }
-    // 析构函数
-    /*
-    ~blockqueue(){
-        m_lock.lock();
-        if(res){
-            delete [] res;
-        }
-        m_lock.unlock();
-    };
-    */
-    //
     // 在队列尾放置元素
     bool push_back(const T& item){
         m_lock.lock();
-        if(cur_size>=max_size){
+        if(cur_size >= max_size){
             m_cond.broadcast();
             m_lock.unlock();
             return false;

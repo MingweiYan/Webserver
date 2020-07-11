@@ -20,8 +20,11 @@ private:
     char log_full_name[1024];
     char log_name[128];
     char dir_name[128];
+    // 当前日志的行数
     int cur_file_line;
+    // 一个日志的最大行数
     int max_file_line;
+    // 上次写日志是否为同一天
     int last_time_day;
     // 文件名中计数后缀
     int cur_file_num;
@@ -38,9 +41,10 @@ private:
     void asyn_write(); 
     // 是否使用log
     bool LogOpen;
+
+
     // 构造函数
     info();
-
 public:
     static info* getInstance();
     

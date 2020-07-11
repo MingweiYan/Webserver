@@ -23,37 +23,38 @@ bool info::init(bool LogOpen_,std::string file_name,int maxline_perfile,int buf_
     max_file_line = maxline_perfile;
     write_buf_size = buf_size;
     // 异步写
-    if(queue_size >0 ){
-        // 标志位 和 阻塞队列
+    if(queue_size > 0){
         isAsyn = true;
+        // 创建阻塞队列
         std::unique_ptr< blockqueue<std::string> > tmp (new blockqueue<std::string>(queue_size) ) ;
         lines_to_write = std::move(tmp); 
-        // 异步写线程
+        // 异步写线程 并分离线程
         pthread_t tid;
         int ret = pthread_create(&tid,NULL,pthread_init_write,NULL);
-        if(ret!=0){
-            std::cout<<" create info asyn pthread failure"<<std::endl;
+        if(ret != 0){
+            std::cerr<<" create info asyn pthread failure";
             throw std::exception();
         }
         ret = pthread_detach(tid);
-        if(ret!=0){
-            std::cout<<" detach info asyn pthread failure"<<std::endl;
+        if(ret != 0){
+            std::cerr<<" detach info asyn pthread failure";
             throw std::exception();
         }
     }
+    // 创建缓存区
     std::unique_ptr<char[]> tmp(new char[write_buf_size]);
     write_buf = std::move(tmp);
     memset(write_buf.get(),'\0',write_buf_size);
+    //
     // time 返回自1970 起的秒数  是无符号数
     // localtime 把time_t 解释为tm 包含时分秒年月日的结构体 
     time_t cur = time(NULL);
     struct tm * now = localtime(&cur);
-
     // 构造log文件名 并且打开  文件名为  文件夹/year_month_daylog名字
     // flie_name 中 / 最后一次出现的位置 返回是字符串数组包含/  处理存在上次文件夹的情况
     const char *p = strrchr(file_name.c_str(), '/');
     if (p == NULL) {
-        // 如果未找到
+        // 如果没有文件夹
         snprintf(log_full_name, 1000, "%d_%02d_%02d_%s", now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, file_name.c_str());
     }
     else{
@@ -67,8 +68,8 @@ bool info::init(bool LogOpen_,std::string file_name,int maxline_perfile,int buf_
     last_time_day = now->tm_mday;
     // 打开文件 
     fp = fopen(log_full_name,"a");
-    if(fp==NULL){
-        std::cout << " open log file failure" << std::endl;
+    if(fp == NULL){
+        std::cerr << " open log file failure";
         return false;
     }
     return true;
@@ -87,28 +88,29 @@ void info::asyn_write(){
         m_lock.unlock();
     }
     // 异步写失败了  关闭异步写
-    std::cout<<"cond error casuing log asyn write failure"<<std::endl;
+    std::cerr<<"cond error casuing log asyn write failure";
     isAsyn = false;
 }
 // 同步写函数   
 void info::write_line(int level, const char* format, ...){
+    // 获取当前时间
     struct timeval now = {0, 0};
     gettimeofday(&now, NULL);
-
     time_t cur = time(NULL);
     tm* cur_time = localtime(&cur);
 
     m_lock.lock();
-    // 已经打开的文件不是今天的log文件
+    // 上次写文件的时间不是今天
     if(cur_time->tm_mday != last_time_day){
         // 异步写在写新的一行前 先写完所有存在的数据
         while(isAsyn && !lines_to_write->empty()) ;
         fflush(fp);
         fclose(fp);
+        // 创建新文件
         snprintf(log_full_name, 1000, "%s%d_%02d_%02d_%s", dir_name, cur_time->tm_year + 1900, cur_time->tm_mon + 1, cur_time->tm_mday, log_name);
         fp = fopen(log_full_name,"a");
         if(fp == NULL){
-            std::cout<<"open log file failure"<<std::endl;
+            std::cerr<<"open log file failure";
             throw std::exception();
         }
     }
@@ -120,7 +122,7 @@ void info::write_line(int level, const char* format, ...){
         ++cur_file_num;
         fp = fopen(log_full_name,"a");
         if(fp == NULL){
-            std::cout<<"open log file failure"<<std::endl;
+            std::cerr<<"open log file failure";
             throw std::exception();
         }
     }
@@ -187,8 +189,7 @@ void info::directOutput(std::string str){
     m_lock.unlock();
 
 }
-
-// 清空缓存
+// 清空缓存区 直接输出。
 void info::flush(){
     m_lock.lock();
     fflush(fp);
