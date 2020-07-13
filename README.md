@@ -27,17 +27,23 @@
  
 - 参数测试  
 
-|         | 默认状态|日志异步| LT+LT | ET+LT  | ET+ET| 关闭LOG | reactor |   
-|:-------:|:------:|:----: |:-----: |:-----:|:-----:| :----: |:-------:|
-|pages/min|372768  |235956 |411576  |445980 |449232 | 735000 | 273648  |
-|bytes/sec|4811665 |3042805|5309680 |5756545|5798240|9479800 | 3530612 |
-|requests |31063   |19659  |34295   |37165  |37436  | 61244  |22793    |
-|failed   | 1      |4      |3       |     0 |0      | 6      |11       | 
+当前软件运行在一个主频3.6G无睿频 2核4线程8G内存 Ubuntu18.04 + mysql5.7的虚拟机
+
+|         | 默认状态|日志异步| LT+LT | ET+LT  | ET+ET| linger | 关闭LOG | reactor | -s -t 6| -s -t 4| -s -t 10| -s -t 12|  
+|:-------:|:------:|:----: |:-----: |:-----:|:-----:|:----:  | :----: |:-------:|:------:|:------: |:------:|:------: |
+|pages/min|372768  |235956 |411576  |445980 |449232 | 388404 | 735000 | 273648  | 415116 | 437052  | 445308  |75048   |
+|bytes/sec|4811665 |3042805|5309680 |5756545|5798240| 5015025|9479800 | 3530612 | 5357420| 5640450 | 5748485 |969060  |
+|requests |31063   |19659  |34295   |37165  |37436  | 32363  |61244   |22793    | 34593  | 36421   | 37107   |6254    |
+|failed   | 1      |4      |3       |     0 |0      |   4    |6       |11       |       0|       0 |     2   |   0    |
 
 
-- 最优参数
 
-$ webbench -c 10000 -t 5 -2 http://127.0.0.1:1122/
+- 最优参数  
+
+    服务端  $ ./server -m 3 -i 0 -s 10 -t 10    
+
+    测试端  $ webbench -c 10000 -t 5 -2 http://127.0.0.1:1122/  
+
     Webbench - Simple Web Benchmark 1.5
     Copyright (c) Radim Kolar 1997-2004, GPL Open Source Software.
 
@@ -50,13 +56,15 @@ $ webbench -c 10000 -t 5 -2 http://127.0.0.1:1122/
 
     Runing info: 10000 clients, running 5 sec.
 
-    Speed=998520 pages/min, 12894295 bytes/sec.
-    Requests: 83210 susceed, 0 failed.
+    Speed=1020060 pages/min, 13172365 bytes/sec.
+    Requests: 85005 susceed, 0 failed.
    
 
 - 极限测试 
 
-$ webbench -c 13000 -t 5 -2 http://127.0.0.1:1122/
+    服务端 $ ./server -m 3 -i 0 -s 10 -t 10
+    测试端 $ webbench -c 13000 -t 5 -2 http://127.0.0.1:1122/
+
 	Webbench - Simple Web Benchmark 1.5
 	Copyright (c) Radim Kolar 1997-2004, GPL Open Source Software.
 
@@ -76,10 +84,10 @@ $ webbench -c 13000 -t 5 -2 http://127.0.0.1:1122/
 
 # 依赖关系
 
-    g++ 中  A依赖B  A应该在B左边
-
-                webserver
-                /      \
+              webserver
+              /       \
+         list_timer    \
+             \          \
             http         \
             /   \         \
            /   mysqlpoll threadpoll  
@@ -90,7 +98,8 @@ $ webbench -c 13000 -t 5 -2 http://127.0.0.1:1122/
       /             /
     tool          lock
 
-    编译顺序  webserver list_timer http mysqlpoll threadpoll info blockqueue tool lock 
+    
+    编译顺序 g++ 中  A依赖B  A应该在B左边 webserver list_timer http mysqlpoll threadpoll info blockqueue tool lock 
 
 
 
@@ -114,7 +123,7 @@ $ webbench -c 13000 -t 5 -2 http://127.0.0.1:1122/
         * bool wait(pthread_mutex_t * locker); 
 
 
-- tools文件夹
+- tools 文件夹
 
     + tools类 实现epoll以及信号辅助函数
 
@@ -150,79 +159,36 @@ $ webbench -c 13000 -t 5 -2 http://127.0.0.1:1122/
         * void directOutput(std::string);
 
 
-## mysqlpoll文件夹
+- mysqlpoll 文件夹
 
-    mysqlpoll类
+    + mysqlpoll类  单例模式 mysql连接池 获取/释放mysql连接
 
-        1)  包含了MYSQL*的 list  
-        2)  使用了 lock 和 sem 
+        * static mysqlpoll* getInstance();
+        * MYSQL* get_connection();
+        * void release_connection(MYSQL*);
+        * void init(std::string host,std::string dbusername,std::string dbpasswd,int port,std::string dbname, int connection_num);
+        * void destory();
 
-        API:
-            static mysqlpoll* getInstance();
-            MYSQL* get_connection();
-            void release_connection(MYSQL*);
-            void init(std::string host,std::string dbusername,std::string dbpasswd,int port,std::string dbname, int connection_num);
-            void destory();
-
-    mysqlconnection 类
-
-        实现 RAII 来管理mysql连接
+    + mysqlconnection 类  资源管理类 用来管理mysql连接
         
-        API：
-            mysqlconnection();
-            ~mysqlconnection();
-            MYSQL* get_mysql();
+        * mysqlconnection();
+        * ~mysqlconnection();
+        * MYSQL* get_mysql();
 
 
-## threadpoll文件夹
+- threadpoll文件夹
 
-    threadpoll类
+    + threadpoll类 模板类 线程池
 
-        1)  拥有一个模板类型对象的list  
-        2)  定义一个function对象  void  func(T*) 类型的对象  即传入对象的工作函数  只需要通过函数设置 模板对象需要执行的工作函数即可
-        3)  使用了lock 和 sem 
-
-        API：
-            void thread_run_func();
-            void set_work_fun(std::function<void (T*)> func);
-            static void* thread_init_func(void* arg)
-            threadpoll(std::function<void (T*)> func,int thread_poll_size,int work_list_size);
-            ~threadpoll();
-            bool get(T* work);  // list是空的 失败
-            bool put(T* work);   // list  已满 失败
-
-
-
-
-        
-
-
-
-## timer文件夹
-
-    timer_node 包含expire_time  sockfd  和 http* 对象
-
-    timer基类
-
-        接口：
-           
-            virtual ~timer();
-            virtual void add(timer_node*) const = 0;
-            virtual void remove(timer_node *) const = 0;
-            virtual void adjust(timer_node*) const = 0;
-            virtual void tick() const = 0;
-            
-        实现：
-
-            timer(int slot = 15):timer_slot(slot){};
-            void set_slot(int i) {timer_slot = i;}
-            void dealwith_alarm(){ tick(); alarm(timer_slot);}
-            int slot()
-
-    list_timer类
-
-        实现：
-            list存储元素  哈希表定义 fd -> iterator 的映射
+        * void thread_run_func();
+        * void set_work_fun(std::function<void (T*)> func);
+        * static void* thread_init_func(void* arg)
+        * threadpoll(std::function<void (T*)> func,int thread_poll_size,int work_list_size);
+        * ~threadpoll();
+        * bool get(T* work);  
+            - list空的 失败
+        * bool put(T* work);   
+            - list已满 失败
 
 
 
@@ -271,6 +237,37 @@ $ webbench -c 13000 -t 5 -2 http://127.0.0.1:1122/
             bool add_content(const char*);
             static void set_epoll_fd(int fd);
 
+
+- timer文件夹
+
+    + timer_node  定时器节点
+         - expire_time 过期时间
+         - sockfd 对应的连接套接字描述符
+         - http*  指向当前连接的http对象
+         - void clear()
+
+    + timer类
+        * timer(int slot);
+        * virtual ~timer();
+        * void set_slot(int)
+        * virtual void add(timer_node*) ;
+        * virtual void remove(timer_node *) ;
+        * virtual void adjust(timer_node*) ;
+        * virtual void tick() ;
+        * void dealwith_alarm();
+        * virtual int slot()
+        * void setfunc(std::function<void(timer_node*)> f)
+        * void execute(timer_node* timer)
+
+    + list_timer类
+
+        * list_timer();
+        * list_timer(int slot);
+        * ~list_timer();
+        * void add(timer_node* timer);
+        * void remove(timer_node* timer);
+        * void adjust(timer_node* timer);
+        * void tick();
 
 
 

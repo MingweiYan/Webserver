@@ -17,14 +17,13 @@ mysqlpoll* mysqlpoll::getInstance(){
 }
 // 初始化
 void mysqlpoll::init(std::string host,std::string username,std::string passwd,int port,std::string name, int connection_num){
-
+    // 设置数据库登录信息
     dbhost = host;
     dbusername = username;
     dbpasswd = passwd;
     dbport = port;
     dbname = name;
-    max_size = connection_num;
-
+    // 初始化数据库连接
     for(int i = 0; i < connection_num; ++i){
         MYSQL* con = NULL;
         con = mysql_init(con);
@@ -49,6 +48,7 @@ MYSQL* mysqlpoll::get_connection(){
     if(mysql_list.empty()){
         return NULL;
     }
+    //从list的前面取
     MYSQL* con = mysql_list.front();
     mysql_list.pop_front();
     m_lock.unlock();
@@ -58,6 +58,7 @@ MYSQL* mysqlpoll::get_connection(){
 void mysqlpoll::release_connection(MYSQL* conn){
     if(conn == NULL) return ;
     m_lock.lock();
+    // 从list的后面放
     mysql_list.push_back(conn);
     m_lock.unlock();
     m_sem.post();

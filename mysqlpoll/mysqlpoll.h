@@ -17,7 +17,6 @@ class mysqlpoll{
 private:
     // 连接池池
     std::list<MYSQL*> mysql_list;
-    int max_size;
     // 线程同步
     locker m_lock;
     sem m_sem;

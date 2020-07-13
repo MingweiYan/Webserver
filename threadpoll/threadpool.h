@@ -15,7 +15,6 @@
 
 template<typename T>
 class threadpoll{
-
 private:
     // 线程池中的任务
     int max_work_size;
@@ -27,28 +26,28 @@ private:
     // 线程相关
     std::function<void (T*)> work_func;
     std::unique_ptr<pthread_t[]> pthread_id;
-    int thread_poll_size;
+    int thread_size;
 public:
-    
      // 构造函数
     threadpoll(std::function<void (T*)> func,int poll_size,int work_list_size){
-        thread_poll_size = poll_size;
+        thread_size = poll_size;
         max_work_size = work_list_size;
         cur_work_size = 0;
         work_func = func;
 
-        if(work_list_size<=0 || thread_poll_size<=0){
+        if(work_list_size<=0 || thread_size<=0){
             LOG_ERROR("input incorrect threadpoll size when init threadpoll")
             exit(1);
         }
-        std::unique_ptr<pthread_t[]> tmp ( new pthread_t[thread_poll_size] );
+        // 创建线程ID数组
+        std::unique_ptr<pthread_t[]> tmp ( new pthread_t[thread_size] );
         pthread_id = std::move(tmp);
         if(!pthread_id.get()){
             LOG_ERROR("allocate pthread matrix error ")
             throw std::exception();
         } 
-            
-        for(int i = 0; i<thread_poll_size; ++i){
+        // 创建线程并设置分离态  
+        for(int i = 0; i<thread_size; ++i){
             int ret = pthread_create(&pthread_id[i],NULL,thread_init_func,this);
             if(ret!=0){
                 LOG_ERROR("threadpoll create thread error")
@@ -61,14 +60,6 @@ public:
             }
         }
     }
-    /*
-    // 析构函数
-    ~threadpoll(){
-        if(pthread_id != NULL){
-            delete [] pthread_id;
-        }
-    }
-    */
     //线程初始化函数 
     static void* thread_init_func(void* arg){
         threadpoll* curpoll = (threadpoll*)arg;
