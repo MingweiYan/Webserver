@@ -8,16 +8,12 @@
 
 int main(int argc,char** argv){
 
-  
     std::string dbuser = "root";
     std::string dbpasswd = "123";
     std::string dbname = "mydb";
 
-    
     webserver  server;
-    // log 先初始化  后面会用到
-    
-    
+   
     server.parse_arg(dbuser,dbpasswd,dbname,argc,argv);
     
     server.init_log();

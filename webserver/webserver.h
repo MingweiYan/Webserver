@@ -20,17 +20,11 @@
 #include"../tools/tools.h"
 #include"../http/http.h"
 
-
+// 一些参数
 const int MAX_FD = 65536;           //最大文件描述符
 const int MAX_EVENT_NUMBER = 10000; //最大事件数
 const int TIMESLOT = 5;             //最小超时单位
 
-
-/*struct client_data{
-    http* conn;
-    int fd;
-    timer_node timer_;
-};*/
 
 class webserver
 {
@@ -41,7 +35,7 @@ private:
     std::string dbname;
     int dbport;
     int sql_conn_size;
-    // 定时器相关
+    // 定时器信号相关
     std::unique_ptr<timer>  timers;
     int signal_pipefd[2];
     int close_pipefd[2];
@@ -55,8 +49,6 @@ private:
     int server_port; 
     bool sock_linger;
     int trigueMode;
-    locker m_lock;
-    //std::unordered_map<int,http> http_conns;
     std::unordered_map<http*,int> toSockfd;
     std::unique_ptr<http[]> http_conns;
     bool stop_server;
@@ -85,7 +77,6 @@ public:
     void add_timernode(int fd);
     void adjust_timernode(int);
     void remove_timernode(int);
-    void timer_handler();
     void timeout_handler(timer_node*);
     // epollfd相关
     bool accpet_connection();
@@ -99,6 +90,7 @@ public:
     // 主循环
     void events_loop();
     
+    // 友元
     friend void nonmember_http_work_func(http*);
     friend void nonmember_timeout_handler(timer_node*);
 
@@ -112,5 +104,6 @@ void sig_handler(int sig);
 void show_error(int connfd,const char* info);
 void init_static_member();
 void nonmember_timeout_handler (timer_node* cur);
+void nonmember_http_work_func(http* conn);
 
 #endif

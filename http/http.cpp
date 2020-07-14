@@ -32,9 +32,7 @@ int http::epoll_trigger_model = ET;
 
 
 
-
-// 从Mysql中获取用户登录信息
-// 初始化静态变量
+// 初始化静态变量 从Mysql中获取用户登录信息
 void init_http_static(char* rootPath_){
 
     http::workdir = rootPath_;
@@ -58,18 +56,13 @@ void init_http_static(char* rootPath_){
         std::string temp2(row[1]);
         http::users[temp1] = temp2;
     }
-    /*
-    for(auto iter = http::users.cbegin(); iter != http::users.cend(); ++iter){
-        std::cout<<"user:" <<iter->first<<"password: " <<iter->second<<std::endl;
-    }
-    */
     
 }
 //初始化函数
 void http::init(int sockfd_,int TriggerMode_){
     sockfd = sockfd_;
     epoll_trigger_model = TriggerMode_;
-    // 添加到epoll
+    // 添加到epoll  读事件
     tools::getInstance()->epoll_add(http::epollfd,sockfd,true,true,epoll_trigger_model == ET);
     tools::getInstance()->setnonblocking(sockfd);
     init();
@@ -83,11 +76,12 @@ void http::init(){
     memset(write_buf,'\0',WRITE_BUFFER_SIZE);
     memset(native_request_url,'\0',FILE_NAME_LEN);
 
-    cur_wr_idx = 0;
     cur_rd_idx = 0;
     cur_parse_idx = 0;
     cur_parseline_head = 0;
     content_len = 0;
+
+    cur_wr_idx = 0;
     bytes_to_send = 0;
     bytes_have_send = 0;
 
@@ -95,9 +89,9 @@ void http::init(){
     cur_http_method  = GET;
     line_state = LINE_OPEN;
 
-    KeepAlive = false;
-
+    
     request_url = NULL;
+    KeepAlive = false;
     mmap_addr = NULL;
     m_iv_cnt = 0;
 }
@@ -105,6 +99,7 @@ void http::init(){
 // 关闭连接
 void http::close_connection(){
     if(sockfd < 0){
+        LOG_WARN("%s %d""close a non-exit conncetion who is ",sockfd)
         return ;
     }
     LOG_INFO("%s%d","close http connection and sockfd is ",sockfd)
@@ -250,7 +245,6 @@ REQUEST_STATE  http::parse_requestline(char* line){
     if (strlen(request_url) == 1)
         strcat(request_url, "judge.html");
     master_state = CHECK_HEADER; 
-
     return NO_REQUEST;
 }
 // 解析一行头部信息
@@ -275,18 +269,10 @@ REQUEST_STATE http::parse_header(char* line){
         line += strspn(line, " \t");
         content_len = atol(line);
     }
-    else if (strncasecmp(line, "Host:", 5) == 0){
-        line += 5;
-        line += strspn(line, " \t");
-    }
-    else{
-       // LOG_INFO("oop!unknow header: %s", line);
-    }
     return NO_REQUEST;
 }
 // 处理POST请求内容 放入post_line 中
 REQUEST_STATE http::parse_content(char* line){
-    // 这里为什么要判断？
     if(cur_rd_idx >= (cur_parse_idx + content_len) ){
         line[content_len] = '\0';
         post_line = line;
@@ -335,10 +321,10 @@ REQUEST_STATE http::process_read(){
 
 // 根据得到的请求内容处理 登录注册 发送文件等
 REQUEST_STATE http::do_request(){
-
+    // 首先设置本地路径为根目录
     strcpy(native_request_url,workdir);
     int len = strlen(workdir);
-    //printf("m_url:%s\n", request_url);
+    // 解析url请求的界面
     const char* p = strrchr(request_url,'/');
     //注册页面
     if(*(p+1) == '0'){
@@ -448,17 +434,18 @@ REQUEST_STATE http::do_request(){
     
         
     int ret = stat(native_request_url,&file_stat);
-    if(ret<0){
+    if(ret < 0){
         return NO_RESOURCE;
     } 
     // 其他用户可读
     if( !(file_stat.st_mode && S_IROTH) ){
         return FORBIDDEN_REUQEST;
     }
+    // 请求的是一个文件夹
     if( S_ISDIR(file_stat.st_mode) ){
         return BAD_REQUEST;
     }
-
+    // 打开文件  进行mmap映射
     int fd = open(native_request_url,O_RDONLY);
     mmap_addr = (char *)mmap(0, file_stat.st_size, PROT_READ, MAP_SHARED, fd, 0);
     close(fd);
@@ -511,10 +498,6 @@ bool http::add_blank_line(){
 bool http::add_content_len(int size){
     return add_line("Content-Length:%d\r\n", size);
 }
-// 添加数据类型
-bool http::add_content_type(){
-    return add_line("Content-Type:%s\r\n", "text/html");
-}
 // 添加是否长连接
 bool http::add_keepalive(){
     return add_line("Connection:%s\r\n", (KeepAlive == true) ? "keep-alive" : "close");
@@ -534,10 +517,16 @@ bool http::process_write(REQUEST_STATE state){
         ret = add_content(error_500_form);
         if(!ret) return false;
         break;
-    case BAD_REQUEST:
+    case NO_RESOURCE:
         add_statusline(404,error_404_title);
         add_header(strlen(error_404_form));
         ret = add_content(error_404_form);
+        if(!ret) return false;
+        break;
+    case BAD_REQUEST:
+        add_statusline(400,error_400_title);
+        add_header(strlen(error_400_form));
+        ret = add_content(error_400_form);
         if(!ret) return false;
         break;
     case FORBIDDEN_REUQEST:
@@ -642,6 +631,8 @@ void http::set_epoll_fd(int fd){
  void http::inform_close(){
     m_lock.lock();
     int fd = this->fd();
+    int pre_erro = errno;
     send(tools::close_pipefd[1],&fd,sizeof(fd),0);
     m_lock.unlock();
+    errno = pre_erro;
  }

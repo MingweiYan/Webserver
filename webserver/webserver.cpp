@@ -37,13 +37,11 @@ void nonmember_http_work_func(http* conn){
         } 
         else { // 读取失败 直接关闭
            // LOG_ERROR("%s%d","reactor read from socket error sockfd is ",conn->fd())
-          //  conn->close_connection(); 
             conn->inform_close();
         }
         ret = conn->write_to_socket();
         if(!ret){
           //  LOG_ERROR("%s%d","reactor write to socket error sockfd is ",conn->fd())
-           // conn->close_connection(); 
             conn->inform_close();
         }
         LOG_INFO("%s%d","write to socket sucess and adjust tiemrnode the sockfd is ",conn->fd())
@@ -72,7 +70,6 @@ webserver::webserver(){
     char root[6] = "/root"; 
     rootPath  += server_path;
     rootPath  += root; 
-   
 }
 // 析构函数
 webserver::~webserver(){
@@ -83,14 +80,7 @@ webserver::~webserver(){
     close(signal_pipefd[0]);
     close(close_pipefd[1]);
     close(close_pipefd[0]);
-   /* for(timer_node* timer: timer_nodes){
-        if(timer != nullptr){
-            delete timer;
-            timer = nullptr;
-        }
-    }
-    */
-
+ 
 }
 
 
@@ -201,7 +191,7 @@ void webserver::init_timer(){
     tools::getInstance()->epoll_add(epollfd,close_pipefd[0],true,false,false);
     tools::getInstance()->setnonblocking(close_pipefd[0]);
 
-   // alarm(timer_slot);
+    alarm(timer_slot);
     LOG_INFO("%s","initialize timer")
 }
 // 初始化log
@@ -223,7 +213,7 @@ void webserver::init_mysqlpoll(){
 // 初始化listen
 void webserver::init_listen(){
 
-    //初始化http静态变量
+    //初始化httproot路径 并且加载用户名和密码
     init_http_static(const_cast<char*>( rootPath.c_str()));
     LOG_INFO("%s","load user account and password from database")
 
@@ -339,7 +329,6 @@ void webserver::adjust_timernode(int fd){
 }
 //在接受连接时添加一个定时器
 void webserver::add_timernode(int fd){
-    // 这里有问题
     timer_node * timer = &timer_nodes[fd];
     timer->sockfd = fd;
     timer->conn = &http_conns[fd];
@@ -354,11 +343,6 @@ void webserver::remove_timernode(int fd){
     timers->remove(timer);
     timer_nodes[fd].clear();
     LOG_INFO("%s%d","remove timer node whose sockfd is ",fd)
-}
-// 定时器处理
-void webserver::timer_handler(){
-    timers->tick();
-    alarm(timers->slot());
 }
 // 定时器超时处理函数
 void webserver::timeout_handler(timer_node* node){
@@ -474,7 +458,7 @@ bool webserver::dealwith_close(){
         LOG_ERROR("%s","recv close fd from pipe failed pipe is closed ")
         return false;
     }
-    for(int i = 0; i < 1024  && fds[i] > 0; ++i){
+    for(int i = 0; i < 1024 && fds[i] > 0; ++i){
         LOG_INFO("%s%d","close sockfd",fds[i])
         close_connection(fds[i]);
         fds[i] = 0;
@@ -488,7 +472,6 @@ bool webserver::dealwith_read(int connfd){
         bool ret = http_conns[connfd].read_once();
         if(ret){
             m_threadpoll->put(&http_conns[connfd]);
-         // http_conns[connfd].process();
             adjust_timernode(connfd);
             LOG_INFO("%s%d","proactor read from socket sucess the sockfd is ",connfd)
         }
@@ -520,8 +503,7 @@ bool webserver::dealwith_write(int connfd){
     }
     // reactor
     else {
-        // 这里不考虑  线程池分读写状态
-      //  adjust_timernode(connfd);
+        adjust_timernode(connfd);
     }
 }
 
@@ -555,12 +537,10 @@ void webserver::http_work_func(http* conn){
 }
 // 关闭一个连接
 void webserver::close_connection(int fd){
-   // m_lock.lock();
     http* conn = &http_conns[fd];
     conn->close_connection();
     remove_timernode(fd);
     toSockfd[conn] = 0;
-  //  m_lock.unlock();
 }
 
 
