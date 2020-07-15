@@ -364,42 +364,50 @@ REQUEST_STATE http::do_request(){
     } 
     // 注册
     else if(*(p+1) == '3'){
-        std::string name; std::string password;
-        // user=1234&password=123
-        int idx = 5;
-        for(; post_line[idx]!='&'; ++idx){
-            name += post_line[idx];
-        }
-        idx +=10;
-        for(; post_line[idx]!='\0'; ++idx){
-            password += post_line[idx];
-        }
-
-        std::string  sql_insert = " INSERT INTO user(username, passwd) VALUES('";
-        sql_insert += name;
-        sql_insert += "', '";
-        sql_insert += password;
-        sql_insert += "')";
-
-        mysqlconnection instance;
-        MYSQL* mysqlconn = instance.get_mysql() ;
-
-        if(! http::users.count(name)){
-            http::m_lock.lock();
-            int res = mysql_query(mysqlconn,sql_insert.c_str());
-            http::users .insert({name,password});
-            http::m_lock.unlock();
-       //     strcpy(request_url,"/welcome.html");
-           if(res==0){
-                strcpy(request_url,"/log.html");
-            } else {
-                strcpy(request_url,"/welcome.html");
-            }
-            
-        } else {
+        // 
+        if(post_line.empty() ){
             strcpy(request_url,"/registerError.html");
+            strncpy(native_request_url + len, request_url, strlen(request_url)); 
+            LOG_WARN("%s","post empty content ")
         }
-        strncpy(native_request_url + len, request_url, strlen(request_url)); 
+        else {
+            std::string name; std::string password;
+            // user=1234&password=123
+            int idx = 5;
+            for(; post_line[idx]!='&'; ++idx){
+                name += post_line[idx];
+            }
+            idx +=10;
+            for(; post_line[idx]!='\0'; ++idx){
+                password += post_line[idx];
+            }
+
+            std::string  sql_insert = " INSERT INTO user(username, passwd) VALUES('";
+            sql_insert += name;
+            sql_insert += "', '";
+            sql_insert += password;
+            sql_insert += "')";
+
+            mysqlconnection instance;
+            MYSQL* mysqlconn = instance.get_mysql() ;
+
+            if(! http::users.count(name)){
+                http::m_lock.lock();
+                int res = mysql_query(mysqlconn,sql_insert.c_str());
+                http::users .insert({name,password});
+                http::m_lock.unlock();
+            if(res==0){
+                    strcpy(request_url,"/log.html");
+                } else {
+                    strcpy(request_url,"/welcome.html");
+                }
+                
+            } else {
+                strcpy(request_url,"/registerError.html");
+            }
+            strncpy(native_request_url + len, request_url, strlen(request_url)); 
+        }
+
      //   LOG_INFO("%s","request to signup")
     }
     // 请求图片
