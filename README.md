@@ -47,39 +47,61 @@
     Webbench - Simple Web Benchmark 1.5
     Copyright (c) Radim Kolar 1997-2004, GPL Open Source Software.
 
-    Request:
-    GET / HTTP/1.1
+    Request:    GET / HTTP/1.1   
     User-Agent: WebBench 1.5
-    Host: 127.0.0.1
+    Host: 127.0.0.1   
     Connection: close
-
 
     Runing info: 10000 clients, running 5 sec.
 
-    Speed=1020060 pages/min, 13172365 bytes/sec.
+    Speed=1020060 pages/min, 13172365 bytes/sec.    
     Requests: 85005 susceed, 0 failed.
    
 
 - 极限测试 
 
-    服务端 $ ./server -m 3 -i 0 -s 10 -t 10
+    服务端 $ ./server -m 3 -i 0 -s 10 -t 10  
     测试端 $ webbench -c 13000 -t 5 -2 http://127.0.0.1:1122/
 
 	Webbench - Simple Web Benchmark 1.5
 	Copyright (c) Radim Kolar 1997-2004, GPL Open Source Software.
 
-	Request:
-	GET / HTTP/1.1
-	User-Agent: WebBench 1.5
-	Host: 127.0.0.1
-	Connection: close
+	Request:GET / HTTP/1.1   
+	User-Agent: WebBench 1.5  
+	Host: 127.0.0.1  
+	Connection: close  
 
 
 	Runing info: 13000 clients, running 5 sec.
 
-	Speed=1014804 pages/min, 13099515 bytes/sec.
+	Speed=1014804 pages/min, 13099515 bytes/sec.   
 	Requests: 84567 susceed, 0 failed.
 
+
+# 运行前必看
+
+- 安装mysql5.7
+  * 从网站下载mysql-apt-config_0.8.6-1_all.deb [链接](https://dev.mysql.com/downloads/file/?id=477124)
+  * sudo dpkg -i mysql-apt-config_0.8.6-1_all.deb  
+  * sudo apt-get update
+  * sudo apt-get install mysql-server
+
+- 配置用户名和密码
+  * sudo mysql
+  * use mysql
+  * update user set authentication_string=PASSWORD("yourpassword") where user='root'; 
+  * update user set plugin="mysql_native_password";
+  * flush privileges; 
+  * quit;
+
+- 创建数据库
+  * create database 数据库名;
+  * USE 数据库名
+  * CREATE TABLE user( username char(50) NULL, passwd char(50) NULL) ENGINE=InnoDB;
+  * INSERT INTO user(username,passwd) VALUES('admin','123'); 
+ 
+ - 修改main.cpp里面的数据库账号密码和数据库名
+ 
 
 
 # 依赖关系
