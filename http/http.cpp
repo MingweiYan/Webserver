@@ -434,6 +434,24 @@ REQUEST_STATE http::do_request(){
         free(tail_url);
     //    LOG_INFO("%s","request music page")
     }
+    // 请求上传文件
+    else if(*(p+1) == '7'){
+        char* tail_url = (char*) malloc(sizeof(char)*200);
+        strcpy(tail_url, "/uploadfile.html");
+        strncpy(native_request_url+len,tail_url,strlen(tail_url));
+        free(tail_url);
+    //    LOG_INFO("%s","request music page")
+    }
+    // 请求上传文件
+    else if(*(p+1) == '8'){
+        std::cout<<post_line<<std::endl;
+        
+        char* tail_url = (char*) malloc(sizeof(char)*200);
+        strcpy(tail_url, "/uploadsuccess.html");
+        strncpy(native_request_url+len,tail_url,strlen(tail_url));
+        free(tail_url);
+    //    LOG_INFO("%s","request music page")
+    }
     // 其他情况  只有/  起始界面 和注册登录完成的界面
     else{
         strncpy(native_request_url + len, request_url, strlen(request_url));

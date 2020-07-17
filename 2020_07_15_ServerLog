@@ -55,3 +55,347 @@
 2020-07-15 01:19:39.466455 [warn]: connection is closed by clients
 2020-07-15 01:19:39.466508 [info]: close http connection and sockfd is 18
 2020-07-15 01:19:39.466538 [info]: remove timer node whose sockfd is 18
+ /***********************************************************************************************/
+                                                                                                 
+2020-07-15 17:20:46.807347 [info]: initialize log function
+2020-07-15 17:20:46.814310 [info]: initialize mysqlpoll function
+2020-07-15 17:20:46.814877 [info]: initialize threadpoll function
+2020-07-15 17:20:46.815366 [info]: load user account and password from database
+2020-07-15 17:20:46.815569 [info]: initialize listen socket
+2020-07-15 17:20:46.815667 [info]: initialize epoll fd
+2020-07-15 17:20:46.815836 [info]: initialize pipe and signal
+2020-07-15 17:20:46.816020 [info]: initialize timer
+2020-07-15 17:20:46.816105 [info]: mysql username:  root  mysql password:  123
+2020-07-15 17:20:46.816188 [info]: mysql databasename : mydb  mysql port:  3306
+2020-07-15 17:20:46.816277 [info]: server port is 1122
+2020-07-15 17:20:46.816364 [info]: Trigger mode is listen LT + http_conn ET
+2020-07-15 17:20:46.816483 [info]: Log write : synchronization
+2020-07-15 17:20:46.816574 [info]: actor model : proactor
+2020-07-15 17:20:46.816658 [info]: mysql connection number : 8
+2020-07-15 17:20:46.816749 [info]: threadpoll connection number : 8
+2020-07-15 17:20:46.816865 [info]: server linger : closed
+ /***********************************************************************************************/
+                                                                                                 
+2020-07-15 17:20:54.254969 [info]: epoll receive a new conncetion
+2020-07-15 17:20:54.255300 [info]: LT listen fd establish a new connection, sockfd is 18
+2020-07-15 17:20:54.256068 [info]: epoll receive a new conncetion
+2020-07-15 17:20:54.256312 [info]: LT listen fd establish a new connection, sockfd is 19
+2020-07-15 17:20:54.256476 [info]: proactor read from socket sucess the sockfd is 18
+2020-07-15 17:20:54.259046 [info]: finish write to socket sockfd 18 is choosing keep alive
+2020-07-15 17:20:54.259198 [info]: write to socket sucess and adjust tiemrnode the sockfd is 18
+2020-07-15 17:20:54.506654 [info]: epoll receive a new conncetion
+2020-07-15 17:20:54.506845 [info]: LT listen fd establish a new connection, sockfd is 20
+2020-07-15 17:21:00.300922 [info]: proactor read from socket sucess the sockfd is 18
+2020-07-15 17:21:00.301337 [info]: finish write to socket sockfd 18 is choosing keep alive
+2020-07-15 17:21:00.301471 [info]: write to socket sucess and adjust tiemrnode the sockfd is 18
+2020-07-15 17:21:00.335215 [info]: proactor read from socket sucess the sockfd is 18
+2020-07-15 17:21:00.337065 [info]: finish write to socket sockfd 18 is choosing keep alive
+2020-07-15 17:21:00.337330 [info]: write to socket sucess and adjust tiemrnode the sockfd is 18
+2020-07-15 17:21:11.819112 [info]: 19 is timing out
+2020-07-15 17:21:11.819258 [info]: 19  is time out close connection and remove timer node
+2020-07-15 17:21:11.819349 [info]: close http connection and sockfd is 19
+2020-07-15 17:21:11.819485 [info]: remove timer node whose sockfd is 19
+2020-07-15 17:21:11.819586 [info]: 20 is timing out
+2020-07-15 17:21:11.819665 [info]: 20  is time out close connection and remove timer node
+2020-07-15 17:21:11.819740 [info]: close http connection and sockfd is 20
+2020-07-15 17:21:11.819849 [info]: remove timer node whose sockfd is 20
+2020-07-15 17:21:16.820304 [info]: 18 is timing out
+2020-07-15 17:21:16.820660 [info]: 18  is time out close connection and remove timer node
+2020-07-15 17:21:16.820894 [info]: close http connection and sockfd is 18
+2020-07-15 17:21:16.821244 [info]: remove timer node whose sockfd is 18
+2020-07-15 17:21:45.236092 [info]: epoll receive a new conncetion
+2020-07-15 17:21:45.236260 [info]: LT listen fd establish a new connection, sockfd is 18
+2020-07-15 17:21:45.236401 [info]: epoll receive a new conncetion
+2020-07-15 17:21:45.236494 [info]: LT listen fd establish a new connection, sockfd is 19
+2020-07-15 17:21:45.236585 [info]: proactor read from socket sucess the sockfd is 18
+2020-07-15 17:21:45.238784 [info]: finish write to socket sockfd 18 is choosing keep alive
+2020-07-15 17:21:45.238946 [info]: write to socket sucess and adjust tiemrnode the sockfd is 18
+2020-07-15 17:21:45.489180 [info]: epoll receive a new conncetion
+2020-07-15 17:21:45.489526 [info]: LT listen fd establish a new connection, sockfd is 20
+2020-07-15 17:21:55.546818 [info]: proactor read from socket sucess the sockfd is 18
+2020-07-15 17:21:55.547192 [info]: finish write to socket sockfd 18 is choosing keep alive
+2020-07-15 17:21:55.547326 [info]: write to socket sucess and adjust tiemrnode the sockfd is 18
+2020-07-15 17:22:01.825097 [info]: 19 is timing out
+2020-07-15 17:22:01.825234 [info]: 19  is time out close connection and remove timer node
+2020-07-15 17:22:01.825318 [info]: close http connection and sockfd is 19
+2020-07-15 17:22:01.825451 [info]: remove timer node whose sockfd is 19
+2020-07-15 17:22:01.825533 [info]: 20 is timing out
+2020-07-15 17:22:01.825608 [info]: 20  is time out close connection and remove timer node
+2020-07-15 17:22:01.825682 [info]: close http connection and sockfd is 20
+2020-07-15 17:22:01.825787 [info]: remove timer node whose sockfd is 20
+2020-07-15 17:22:11.826403 [info]: 18 is timing out
+2020-07-15 17:22:11.826565 [info]: 18  is time out close connection and remove timer node
+2020-07-15 17:22:11.826671 [info]: close http connection and sockfd is 18
+2020-07-15 17:22:11.826834 [info]: remove timer node whose sockfd is 18
+ /***********************************************************************************************/
+                                                                                                 
+2020-07-15 17:28:35.168408 [info]: initialize log function
+2020-07-15 17:28:35.176489 [info]: initialize mysqlpoll function
+2020-07-15 17:28:35.177081 [info]: initialize threadpoll function
+2020-07-15 17:28:35.177461 [info]: load user account and password from database
+2020-07-15 17:28:35.177676 [info]: initialize listen socket
+2020-07-15 17:28:35.177796 [info]: initialize epoll fd
+2020-07-15 17:28:35.177906 [info]: initialize pipe and signal
+2020-07-15 17:28:35.178017 [info]: initialize timer
+2020-07-15 17:28:35.178097 [info]: mysql username:  root  mysql password:  123
+2020-07-15 17:28:35.178172 [info]: mysql databasename : mydb  mysql port:  3306
+2020-07-15 17:28:35.178246 [info]: server port is 1122
+2020-07-15 17:28:35.178321 [info]: Trigger mode is listen LT + http_conn ET
+2020-07-15 17:28:35.178394 [info]: Log write : synchronization
+2020-07-15 17:28:35.178467 [info]: actor model : proactor
+2020-07-15 17:28:35.178540 [info]: mysql connection number : 8
+2020-07-15 17:28:35.178614 [info]: threadpoll connection number : 8
+2020-07-15 17:28:35.178701 [info]: server linger : closed
+ /***********************************************************************************************/
+                                                                                                 
+2020-07-15 17:28:40.394604 [info]: epoll receive a new conncetion
+2020-07-15 17:28:40.394808 [info]: LT listen fd establish a new connection, sockfd is 18
+2020-07-15 17:28:40.394906 [info]: epoll receive a new conncetion
+2020-07-15 17:28:40.395001 [info]: LT listen fd establish a new connection, sockfd is 19
+2020-07-15 17:28:40.395127 [info]: proactor read from socket sucess the sockfd is 18
+2020-07-15 17:28:40.395409 [info]: finish write to socket sockfd 18 is choosing keep alive
+2020-07-15 17:28:40.395492 [info]: write to socket sucess and adjust tiemrnode the sockfd is 18
+2020-07-15 17:28:40.645784 [info]: epoll receive a new conncetion
+2020-07-15 17:28:40.646119 [info]: LT listen fd establish a new connection, sockfd is 20
+2020-07-15 17:28:47.432376 [info]: proactor read from socket sucess the sockfd is 18
+2020-07-15 17:28:47.432639 [info]: finish write to socket sockfd 18 is choosing keep alive
+2020-07-15 17:28:47.432805 [info]: write to socket sucess and adjust tiemrnode the sockfd is 18
+2020-07-15 17:29:00.179896 [info]: 19 is timing out
+2020-07-15 17:29:00.180113 [info]: 19  is time out close connection and remove timer node
+2020-07-15 17:29:00.180225 [info]: close http connection and sockfd is 19
+2020-07-15 17:29:00.180368 [info]: remove timer node whose sockfd is 19
+2020-07-15 17:29:00.180455 [info]: 20 is timing out
+2020-07-15 17:29:00.180534 [info]: 20  is time out close connection and remove timer node
+2020-07-15 17:29:00.180611 [info]: close http connection and sockfd is 20
+2020-07-15 17:29:00.180722 [info]: remove timer node whose sockfd is 20
+2020-07-15 17:29:05.180988 [info]: 18 is timing out
+2020-07-15 17:29:05.181232 [info]: 18  is time out close connection and remove timer node
+2020-07-15 17:29:05.181324 [info]: close http connection and sockfd is 18
+2020-07-15 17:29:05.181466 [info]: remove timer node whose sockfd is 18
+2020-07-15 17:29:12.229554 [info]: epoll receive a new conncetion
+2020-07-15 17:29:12.229874 [info]: LT listen fd establish a new connection, sockfd is 18
+2020-07-15 17:29:12.230092 [info]: epoll receive a new conncetion
+2020-07-15 17:29:12.230249 [info]: LT listen fd establish a new connection, sockfd is 19
+ /***********************************************************************************************/
+                                                                                                 
+2020-07-15 17:40:39.279552 [info]: initialize log function
+2020-07-15 17:40:39.286397 [info]: initialize mysqlpoll function
+2020-07-15 17:40:39.286963 [info]: initialize threadpoll function
+2020-07-15 17:40:39.287349 [info]: load user account and password from database
+2020-07-15 17:40:39.287552 [info]: initialize listen socket
+2020-07-15 17:40:39.287657 [info]: initialize epoll fd
+2020-07-15 17:40:39.287795 [info]: initialize pipe and signal
+2020-07-15 17:40:39.287945 [info]: initialize timer
+2020-07-15 17:40:39.288053 [info]: mysql username:  root  mysql password:  123
+2020-07-15 17:40:39.288157 [info]: mysql databasename : mydb  mysql port:  3306
+2020-07-15 17:40:39.288262 [info]: server port is 1122
+2020-07-15 17:40:39.288366 [info]: Trigger mode is listen LT + http_conn ET
+2020-07-15 17:40:39.288477 [info]: Log write : synchronization
+2020-07-15 17:40:39.288584 [info]: actor model : proactor
+2020-07-15 17:40:39.288693 [info]: mysql connection number : 8
+2020-07-15 17:40:39.288796 [info]: threadpoll connection number : 8
+2020-07-15 17:40:39.288902 [info]: server linger : closed
+ /***********************************************************************************************/
+                                                                                                 
+2020-07-15 17:40:43.683763 [info]: epoll receive a new conncetion
+2020-07-15 17:40:43.683970 [info]: LT listen fd establish a new connection, sockfd is 18
+2020-07-15 17:40:43.684062 [info]: epoll receive a new conncetion
+2020-07-15 17:40:43.684151 [info]: LT listen fd establish a new connection, sockfd is 19
+2020-07-15 17:40:43.684256 [info]: proactor read from socket sucess the sockfd is 18
+2020-07-15 17:40:43.684558 [info]: finish write to socket sockfd 18 is choosing keep alive
+2020-07-15 17:40:43.684680 [info]: write to socket sucess and adjust tiemrnode the sockfd is 18
+2020-07-15 17:40:43.935477 [info]: epoll receive a new conncetion
+2020-07-15 17:40:43.935682 [info]: LT listen fd establish a new connection, sockfd is 20
+2020-07-15 17:40:44.207706 [info]: proactor read from socket sucess the sockfd is 18
+2020-07-15 17:40:44.208132 [info]: finish write to socket sockfd 18 is choosing keep alive
+2020-07-15 17:40:44.208276 [info]: write to socket sucess and adjust tiemrnode the sockfd is 18
+2020-07-15 17:40:50.556330 [info]: proactor read from socket sucess the sockfd is 18
+2020-07-15 17:40:50.556683 [info]: finish write to socket sockfd 18 is choosing keep alive
+2020-07-15 17:40:50.556841 [info]: write to socket sucess and adjust tiemrnode the sockfd is 18
+2020-07-15 17:40:59.289420 [info]: 19 is timing out
+2020-07-15 17:40:59.289632 [info]: 19  is time out close connection and remove timer node
+2020-07-15 17:40:59.289731 [info]: close http connection and sockfd is 19
+2020-07-15 17:40:59.289878 [info]: remove timer node whose sockfd is 19
+2020-07-15 17:40:59.289968 [info]: 20 is timing out
+2020-07-15 17:40:59.290051 [info]: 20  is time out close connection and remove timer node
+2020-07-15 17:40:59.290132 [info]: close http connection and sockfd is 20
+2020-07-15 17:40:59.290245 [info]: remove timer node whose sockfd is 20
+2020-07-15 17:41:09.291798 [info]: 18 is timing out
+2020-07-15 17:41:09.292362 [info]: 18  is time out close connection and remove timer node
+2020-07-15 17:41:09.292848 [info]: close http connection and sockfd is 18
+2020-07-15 17:41:09.293503 [info]: remove timer node whose sockfd is 18
+ /***********************************************************************************************/
+                                                                                                 
+2020-07-15 17:43:49.449289 [info]: initialize log function
+2020-07-15 17:43:49.455887 [info]: initialize mysqlpoll function
+2020-07-15 17:43:49.456408 [info]: initialize threadpoll function
+2020-07-15 17:43:49.456761 [info]: load user account and password from database
+2020-07-15 17:43:49.456971 [info]: initialize listen socket
+2020-07-15 17:43:49.457068 [info]: initialize epoll fd
+2020-07-15 17:43:49.457164 [info]: initialize pipe and signal
+2020-07-15 17:43:49.457276 [info]: initialize timer
+2020-07-15 17:43:49.457358 [info]: mysql username:  root  mysql password:  123
+2020-07-15 17:43:49.457437 [info]: mysql databasename : mydb  mysql port:  3306
+2020-07-15 17:43:49.457525 [info]: server port is 1122
+2020-07-15 17:43:49.457600 [info]: Trigger mode is listen LT + http_conn ET
+2020-07-15 17:43:49.457673 [info]: Log write : synchronization
+2020-07-15 17:43:49.457746 [info]: actor model : proactor
+2020-07-15 17:43:49.457818 [info]: mysql connection number : 8
+2020-07-15 17:43:49.457891 [info]: threadpoll connection number : 8
+2020-07-15 17:43:49.457964 [info]: server linger : closed
+ /***********************************************************************************************/
+                                                                                                 
+2020-07-15 17:43:52.426320 [info]: epoll receive a new conncetion
+2020-07-15 17:43:52.426537 [info]: LT listen fd establish a new connection, sockfd is 18
+2020-07-15 17:43:52.426643 [info]: epoll receive a new conncetion
+2020-07-15 17:43:52.426732 [info]: LT listen fd establish a new connection, sockfd is 19
+2020-07-15 17:43:58.202280 [info]: proactor read from socket sucess the sockfd is 18
+2020-07-15 17:43:58.202511 [info]: finish write to socket sockfd 18 is choosing keep alive
+2020-07-15 17:43:58.202683 [info]: write to socket sucess and adjust tiemrnode the sockfd is 18
+2020-07-15 17:44:09.460345 [info]: 19 is timing out
+2020-07-15 17:44:09.460923 [info]: 19  is time out close connection and remove timer node
+2020-07-15 17:44:09.461364 [info]: close http connection and sockfd is 19
+2020-07-15 17:44:09.461932 [info]: remove timer node whose sockfd is 19
+2020-07-15 17:44:14.463200 [info]: 18 is timing out
+2020-07-15 17:44:14.463377 [info]: 18  is time out close connection and remove timer node
+2020-07-15 17:44:14.463465 [info]: close http connection and sockfd is 18
+2020-07-15 17:44:14.463599 [info]: remove timer node whose sockfd is 18
+2020-07-15 17:44:28.201500 [info]: epoll receive a new conncetion
+2020-07-15 17:44:28.201745 [info]: LT listen fd establish a new connection, sockfd is 18
+2020-07-15 17:44:28.201841 [info]: epoll receive a new conncetion
+2020-07-15 17:44:28.201930 [info]: LT listen fd establish a new connection, sockfd is 19
+ /***********************************************************************************************/
+                                                                                                 
+2020-07-15 17:48:39.705468 [info]: initialize log function
+2020-07-15 17:48:39.712721 [info]: initialize mysqlpoll function
+2020-07-15 17:48:39.713294 [info]: initialize threadpoll function
+2020-07-15 17:48:39.713650 [info]: load user account and password from database
+2020-07-15 17:48:39.713853 [info]: initialize listen socket
+2020-07-15 17:48:39.713946 [info]: initialize epoll fd
+2020-07-15 17:48:39.714043 [info]: initialize pipe and signal
+2020-07-15 17:48:39.714153 [info]: initialize timer
+2020-07-15 17:48:39.714236 [info]: mysql username:  root  mysql password:  123
+2020-07-15 17:48:39.714320 [info]: mysql databasename : mydb  mysql port:  3306
+2020-07-15 17:48:39.714395 [info]: server port is 1122
+2020-07-15 17:48:39.714470 [info]: Trigger mode is listen LT + http_conn ET
+2020-07-15 17:48:39.714545 [info]: Log write : synchronization
+2020-07-15 17:48:39.714625 [info]: actor model : proactor
+2020-07-15 17:48:39.714701 [info]: mysql connection number : 8
+2020-07-15 17:48:39.714775 [info]: threadpoll connection number : 8
+2020-07-15 17:48:39.714850 [info]: server linger : closed
+ /***********************************************************************************************/
+                                                                                                 
+ /***********************************************************************************************/
+                                                                                                 
+2020-07-15 17:49:52.517505 [info]: initialize log function
+2020-07-15 17:49:52.524384 [info]: initialize mysqlpoll function
+2020-07-15 17:49:52.524906 [info]: initialize threadpoll function
+2020-07-15 17:49:52.525202 [info]: load user account and password from database
+2020-07-15 17:49:52.525394 [info]: initialize listen socket
+2020-07-15 17:49:52.525496 [info]: initialize epoll fd
+2020-07-15 17:49:52.525590 [info]: initialize pipe and signal
+2020-07-15 17:49:52.525701 [info]: initialize timer
+2020-07-15 17:49:52.525782 [info]: mysql username:  root  mysql password:  123
+2020-07-15 17:49:52.525861 [info]: mysql databasename : mydb  mysql port:  3306
+2020-07-15 17:49:52.525939 [info]: server port is 1122
+2020-07-15 17:49:52.526016 [info]: Trigger mode is listen LT + http_conn ET
+2020-07-15 17:49:52.526099 [info]: Log write : synchronization
+2020-07-15 17:49:52.526172 [info]: actor model : proactor
+2020-07-15 17:49:52.526244 [info]: mysql connection number : 8
+2020-07-15 17:49:52.526317 [info]: threadpoll connection number : 8
+2020-07-15 17:49:52.526390 [info]: server linger : closed
+ /***********************************************************************************************/
+                                                                                                 
+2020-07-15 17:50:00.733713 [info]: epoll receive a new conncetion
+2020-07-15 17:50:00.734093 [info]: LT listen fd establish a new connection, sockfd is 18
+2020-07-15 17:50:00.734226 [info]: epoll receive a new conncetion
+2020-07-15 17:50:00.734353 [info]: LT listen fd establish a new connection, sockfd is 19
+2020-07-15 17:50:00.734477 [info]: proactor read from socket sucess the sockfd is 18
+2020-07-15 17:50:00.734971 [info]: finish write to socket sockfd 18 is choosing keep alive
+2020-07-15 17:50:00.735089 [info]: write to socket sucess and adjust tiemrnode the sockfd is 18
+2020-07-15 17:50:00.773196 [info]: proactor read from socket sucess the sockfd is 18
+2020-07-15 17:50:00.775396 [info]: finish write to socket sockfd 18 is choosing keep alive
+2020-07-15 17:50:00.775751 [info]: write to socket sucess and adjust tiemrnode the sockfd is 18
+2020-07-15 17:50:00.884047 [info]: proactor read from socket sucess the sockfd is 18
+2020-07-15 17:50:00.895773 [info]: finish write to socket sockfd 18 is choosing keep alive
+2020-07-15 17:50:00.896066 [info]: write to socket sucess and adjust tiemrnode the sockfd is 18
+2020-07-15 17:50:00.985697 [info]: epoll receive a new conncetion
+2020-07-15 17:50:00.986063 [info]: LT listen fd establish a new connection, sockfd is 20
+2020-07-15 17:50:03.616913 [info]: proactor read from socket sucess the sockfd is 19
+2020-07-15 17:50:03.617317 [info]: finish write to socket sockfd 19 is choosing keep alive
+2020-07-15 17:50:03.617589 [info]: write to socket sucess and adjust tiemrnode the sockfd is 19
+2020-07-15 17:50:03.625232 [warn]: connection is closed by clients
+2020-07-15 17:50:03.625837 [info]: close http connection and sockfd is 18
+2020-07-15 17:50:03.626039 [info]: remove timer node whose sockfd is 18
+2020-07-15 17:50:07.294290 [info]: proactor read from socket sucess the sockfd is 19
+2020-07-15 17:50:07.295039 [info]: finish write to socket sockfd 19 is choosing keep alive
+2020-07-15 17:50:07.295435 [info]: write to socket sucess and adjust tiemrnode the sockfd is 19
+2020-07-15 17:50:07.330399 [info]: proactor read from socket sucess the sockfd is 19
+2020-07-15 17:50:07.332340 [info]: finish write to socket sockfd 19 is choosing keep alive
+2020-07-15 17:50:07.332544 [info]: write to socket sucess and adjust tiemrnode the sockfd is 19
+2020-07-15 17:50:09.664121 [info]: proactor read from socket sucess the sockfd is 19
+2020-07-15 17:50:09.664180 [warn]: post empty content 
+2020-07-15 17:50:09.664967 [info]: finish write to socket sockfd 19 is choosing keep alive
+2020-07-15 17:50:09.665121 [info]: write to socket sucess and adjust tiemrnode the sockfd is 19
+2020-07-15 17:50:13.449152 [info]: proactor read from socket sucess the sockfd is 19
+2020-07-15 17:50:13.453237 [info]: finish write to socket sockfd 19 is choosing keep alive
+2020-07-15 17:50:13.453588 [info]: write to socket sucess and adjust tiemrnode the sockfd is 19
+2020-07-15 17:50:17.531373 [info]: 20 is timing out
+2020-07-15 17:50:17.531744 [info]: 20  is time out close connection and remove timer node
+2020-07-15 17:50:17.531970 [info]: close http connection and sockfd is 20
+2020-07-15 17:50:17.532325 [info]: remove timer node whose sockfd is 20
+2020-07-15 17:50:19.393432 [info]: proactor read from socket sucess the sockfd is 19
+2020-07-15 17:50:19.393833 [info]: finish write to socket sockfd 19 is choosing keep alive
+2020-07-15 17:50:19.393984 [info]: write to socket sucess and adjust tiemrnode the sockfd is 19
+2020-07-15 17:50:19.694444 [info]: epoll receive a new conncetion
+2020-07-15 17:50:19.694666 [info]: LT listen fd establish a new connection, sockfd is 18
+2020-07-15 17:50:20.572249 [info]: proactor read from socket sucess the sockfd is 19
+2020-07-15 17:50:20.572597 [info]: finish write to socket sockfd 19 is choosing keep alive
+2020-07-15 17:50:20.572750 [info]: write to socket sucess and adjust tiemrnode the sockfd is 19
+2020-07-15 17:50:25.809637 [info]: proactor read from socket sucess the sockfd is 19
+2020-07-15 17:50:25.810024 [info]: finish write to socket sockfd 19 is choosing keep alive
+2020-07-15 17:50:25.810158 [info]: write to socket sucess and adjust tiemrnode the sockfd is 19
+2020-07-15 17:50:37.533982 [info]: 18 is timing out
+2020-07-15 17:50:37.534254 [info]: 18  is time out close connection and remove timer node
+2020-07-15 17:50:37.534362 [info]: close http connection and sockfd is 18
+2020-07-15 17:50:37.534513 [info]: remove timer node whose sockfd is 18
+2020-07-15 17:50:42.535196 [info]: 19 is timing out
+2020-07-15 17:50:42.535766 [info]: 19  is time out close connection and remove timer node
+2020-07-15 17:50:42.536193 [info]: close http connection and sockfd is 19
+2020-07-15 17:50:42.536753 [info]: remove timer node whose sockfd is 19
+ /***********************************************************************************************/
+                                                                                                 
+2020-07-15 18:02:42.415334 [info]: initialize log function
+2020-07-15 18:02:42.423020 [info]: initialize mysqlpoll function
+2020-07-15 18:02:42.423602 [info]: initialize threadpoll function
+2020-07-15 18:02:42.423988 [info]: load user account and password from database
+2020-07-15 18:02:42.424209 [info]: initialize listen socket
+2020-07-15 18:02:42.424303 [info]: initialize epoll fd
+2020-07-15 18:02:42.424396 [info]: initialize pipe and signal
+2020-07-15 18:02:42.424511 [info]: initialize timer
+2020-07-15 18:02:42.424587 [info]: mysql username:  root  mysql password:  123
+2020-07-15 18:02:42.424704 [info]: mysql databasename : mydb  mysql port:  3306
+2020-07-15 18:02:42.424802 [info]: server port is 1122
+2020-07-15 18:02:42.424907 [info]: Trigger mode is listen LT + http_conn ET
+2020-07-15 18:02:42.424979 [info]: Log write : synchronization
+2020-07-15 18:02:42.425051 [info]: actor model : proactor
+2020-07-15 18:02:42.425122 [info]: mysql connection number : 8
+2020-07-15 18:02:42.425193 [info]: threadpoll connection number : 8
+2020-07-15 18:02:42.425265 [info]: server linger : closed
+ /***********************************************************************************************/
+                                                                                                 
+2020-07-15 18:02:45.899304 [info]: epoll receive a new conncetion
+2020-07-15 18:02:45.899671 [info]: LT listen fd establish a new connection, sockfd is 18
+2020-07-15 18:02:45.899850 [info]: epoll receive a new conncetion
+2020-07-15 18:02:45.899970 [info]: LT listen fd establish a new connection, sockfd is 19
+2020-07-15 18:02:49.989383 [info]: proactor read from socket sucess the sockfd is 18
+2020-07-15 18:02:49.989926 [info]: finish write to socket sockfd 18 is choosing keep alive
+2020-07-15 18:02:49.990125 [info]: write to socket sucess and adjust tiemrnode the sockfd is 18
+2020-07-15 18:03:02.426245 [info]: 19 is timing out
+2020-07-15 18:03:02.426641 [info]: 19  is time out close connection and remove timer node
+2020-07-15 18:03:02.426905 [info]: close http connection and sockfd is 19
+2020-07-15 18:03:02.427426 [info]: remove timer node whose sockfd is 19
+2020-07-15 18:03:07.428322 [info]: 18 is timing out
+2020-07-15 18:03:07.428886 [info]: 18  is time out close connection and remove timer node
+2020-07-15 18:03:07.429311 [info]: close http connection and sockfd is 18
+2020-07-15 18:03:07.429984 [info]: remove timer node whose sockfd is 18
