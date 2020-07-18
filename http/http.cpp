@@ -4,6 +4,7 @@
 
 
 const char *ok_200_title = "OK";
+const char *ok_206_title = "Partial Content";
 const char *error_400_title = "Bad Request";
 const char *error_400_form = "Your request has bad syntax or is inherently impossible to staisfy.\n";
 const char *error_403_title = "Forbidden";
@@ -89,6 +90,8 @@ void http::init(){
     cur_http_method  = GET;
     line_state = LINE_OPEN;
 
+    range_beg = -1;
+    range_end = -1;
     
     request_url = NULL;
     KeepAlive = false;
@@ -268,6 +271,18 @@ REQUEST_STATE http::parse_header(char* line){
         line += 15;
         line += strspn(line, " \t");
         content_len = atol(line);
+    }
+    else if (strncasecmp(line,"Ranges: bytes=",14) == 0){
+        line += 14;
+        char* pos = strpbrk(line,"-");
+        if(pos != NULL){
+            *pos1 = '\0';
+            range_beg = atol(line);
+            ++pos;
+        }
+        if(*pos != '\0'){
+            range_end = atol(pos);
+        } 
     }
     return NO_REQUEST;
 }
@@ -514,6 +529,16 @@ bool http::add_keepalive(){
 bool http::add_content(const char* content){
      return add_line("%s", content);
 }
+// 支持范围请求
+bool http::add_accpet_range(){
+    return add_line("%s","Accept-Ranges : bytes");
+}
+// 添加范围写内容
+bool http::add_content_range(int size){
+    return addline("%s%d-%d//%d","Content-Range: bytes ",range_beg,range_end,size)
+}
+
+
 // 处理写
 bool http::process_write(REQUEST_STATE state){
     bool ret;

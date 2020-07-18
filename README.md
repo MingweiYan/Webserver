@@ -246,6 +246,8 @@
         * bool add_content_len(int size);
         * bool add_blank_line();
         * bool add_content(const char*);
+        * bool add_accept_range(); 
+        * bool add_content_range(int);
         * bool write_to_socket();
             - 写一行内容到写缓存，  返回false 可能是 写缓存已满，或者不满但放不下要写的内容
         * void inform_close();
