@@ -24,12 +24,15 @@
 */
 // 相应头部信息
 extern const char *ok_200_title;
+extern const char *ok_206_title;
 extern const char *error_400_title ;
 extern const char *error_400_form ;
 extern const char *error_403_title ;
 extern const char *error_403_form ;
 extern const char *error_404_title ;
 extern const char *error_404_form ;
+extern const char *error_416_title ;
+extern const char *error_416_form ;
 extern const char *error_500_title ;
 extern const char *error_500_form ;
 // 定义并行处理模式
@@ -121,6 +124,7 @@ private:
     // 断点写相关
     int range_beg;
     int range_end;
+    bool range_request;
 
     // 静态对象
     static locker m_lock;
@@ -159,7 +163,7 @@ public:
     bool add_blank_line();
     bool add_content(const char*);
     bool add_accpet_range();
-    bool add_content_range(int);
+    bool add_content_range(int,int,int);
 
     // 辅助函数
     void close_connection();
