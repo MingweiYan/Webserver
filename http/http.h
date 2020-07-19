@@ -121,6 +121,7 @@ private:
     // 断点写相关
     int range_beg;
     int range_end;
+    bool range_request;
 
     // 静态对象
     static locker m_lock;
@@ -159,7 +160,7 @@ public:
     bool add_blank_line();
     bool add_content(const char*);
     bool add_accpet_range();
-    bool add_content_range(int);
+    bool add_content_range(int,int,int);
 
     // 辅助函数
     void close_connection();

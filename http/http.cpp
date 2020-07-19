@@ -11,6 +11,8 @@ const char *error_403_title = "Forbidden";
 const char *error_403_form = "You do not have permission to get file form this server.\n";
 const char *error_404_title = "Not Found";
 const char *error_404_form = "The requested file was not found on this server.\n";
+const char *error_416_title = "Out of range";
+const char * error_146_form = "Requested Range Not Satisfiable";
 const char *error_500_title = "Internal Error";
 const char *error_500_form = "There was an unusual problem serving the request file.\n";
 
@@ -92,6 +94,7 @@ void http::init(){
 
     range_beg = -1;
     range_end = -1;
+    range_request = false;
     
     request_url = NULL;
     KeepAlive = false;
@@ -282,7 +285,8 @@ REQUEST_STATE http::parse_header(char* line){
         }
         if(*pos != '\0'){
             range_end = atol(pos);
-        } 
+        }
+        range_request = true; 
     }
     return NO_REQUEST;
 }
@@ -534,8 +538,8 @@ bool http::add_accpet_range(){
     return add_line("%s","Accept-Ranges : bytes");
 }
 // 添加范围写内容
-bool http::add_content_range(int size){
-    return addline("%s%d-%d//%d","Content-Range: bytes ",range_beg,range_end,size)
+bool http::add_content_range(int beg, int end, int size){
+    return addline("%s%d-%d//%d","Content-Range: bytes ",beg,end,size)
 }
 
 
@@ -569,26 +573,75 @@ bool http::process_write(REQUEST_STATE state){
         if(!ret) return false;
         break;
     case FILE_REQUEST:
-        add_statusline(200,ok_200_title);
-        if(file_stat.st_size > 0){
-            add_header(file_stat.st_size);
-            m_iv[0].iov_base = write_buf;
-            m_iv[0].iov_len = cur_wr_idx;
-            m_iv[1].iov_base = mmap_addr;
-            m_iv[1].iov_len = file_stat.st_size;
-            m_iv_cnt = 2;
-            bytes_to_send = cur_wr_idx + file_stat.st_size;
-            return true;
-        } 
-        // 空文件
-        else {
-            const char *ok_string = "<html><body></body></html>";
-            add_header(strlen(ok_string));
-            bool ret = add_content(ok_string);
-            if(!ret){
-                return false;
+        if(!range_request){
+            add_statusline(200,ok_200_title);
+            if(file_stat.st_size > 0){
+                add_header(file_stat.st_size);
+                m_iv[0].iov_base = write_buf;
+                m_iv[0].iov_len = cur_wr_idx;
+                m_iv[1].iov_base = mmap_addr;
+                m_iv[1].iov_len = file_stat.st_size;
+                m_iv_cnt = 2;
+                bytes_to_send = cur_wr_idx + file_stat.st_size;
+                return true;
+            } 
+            // 空文件
+            else {
+                const char *ok_string = "<html><body></body></html>";
+                add_header(strlen(ok_string));
+                bool ret = add_content(ok_string);
+                if(!ret){
+                    return false;
+                }
             }
+        } 
+        else{
+            add_statusline(206,ok_206_title);
+            int beg = 0; int size = 0;
+            // -b
+            if(range_beg < 0){
+                size = range_end;
+                beg = bytes_to_send - size;
+            } //  a- 
+            else if (range_end < 0){
+                size = bytes_to_send - range_beg;
+                beg = range_beg;
+            } // a-b 
+            else {
+                size = range_end - range_beg + 1;
+                beg = range_beg;
+            }
+            // 请求范围超出了
+            if(beg + size > file_stat.st_size){
+                add_statusline(416,error_416_title);
+                add_header(strlen(error_416_form));
+                ret = add_content(error_416_form);
+                if(!ret) return false;
+                break;
+            }
+            add_header(size);
+            add_content_range(beg,beg + size -1,file_stat.st_size);
+            if(file_stat.st_size > 0){
+                m_iv[0].iov_base = write_buf;
+                m_iv[0].iov_len = cur_wr_idx;
+                m_iv[1].iov_base = mmap_addr + beg;
+                m_iv[1].iov_len = size;
+                m_iv_cnt = 2;
+                bytes_to_send = cur_wr_idx + size;
+                return true;
+            } 
+            // 空文件
+            else {
+                const char *ok_string = "<html><body></body></html>";
+                add_header(strlen(ok_string));
+                bool ret = add_content(ok_string);
+                if(!ret){
+                    return false;
+                }
+            }
+            
         }
+        
         break;
     default:
         return false;
