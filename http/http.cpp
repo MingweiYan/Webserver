@@ -12,7 +12,11 @@ const char *error_403_form = "You do not have permission to get file form this s
 const char *error_404_title = "Not Found";
 const char *error_404_form = "The requested file was not found on this server.\n";
 const char *error_416_title = "Out of range";
+<<<<<<< HEAD
 const char *error_416_form = "Requested Range Not Satisfiable";
+=======
+const char * error_146_form = "Requested Range Not Satisfiable";
+>>>>>>> cf253c9b1c12cfa8b8a950bbe99423f7acedc3e5
 const char *error_500_title = "Internal Error";
 const char *error_500_form = "There was an unusual problem serving the request file.\n";
 
@@ -539,7 +543,11 @@ bool http::add_accpet_range(){
 }
 // 添加范围写内容
 bool http::add_content_range(int beg, int end, int size){
+<<<<<<< HEAD
     return add_line("%s%d-%d//%d","Content-Range: bytes ",beg,end,size);
+=======
+    return addline("%s%d-%d//%d","Content-Range: bytes ",beg,end,size)
+>>>>>>> cf253c9b1c12cfa8b8a950bbe99423f7acedc3e5
 }
 
 
