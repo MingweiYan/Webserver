@@ -128,6 +128,7 @@ private:
     static locker m_lock;
     static char* workdir;
     static std::unordered_map<std::string,std::string> users;
+    static std::unordered_map<std::string,std::string> tokens;
     static int epollfd;
     static int actor_model;
     static int epoll_trigger_model;
@@ -161,9 +162,10 @@ public:
     bool add_content_len(int size);
     bool add_blank_line();
     bool add_content(const char*);
-    bool add_accpet_range();
+    bool add_accpet_rangerequest();
     bool add_content_range(int,int,int);
-    bool add_file_md5();
+    bool add_ETag();
+    bool add_token();
 
     // 辅助函数
     void close_connection();

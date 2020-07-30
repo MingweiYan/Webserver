@@ -3,7 +3,7 @@
 
 int tools::signal_pipefd[2] = {0,0};
 int tools::close_pipefd[2] = {0,0};
-std::unordered_map<std::string,std::string> tools::md5s ={};
+std::unordered_map<std::string,std::string> tools::file_md5s ={};
 
 // 单例模式
 tools* tools::getInstance(){
@@ -68,11 +68,11 @@ void tools::set_sigfunc(int sig,void(handler)(int), bool restrart){
     assert(ret!=-1);
 }
 // 产生文件的MD5
-int tools::compute_MD5(std::string file_name){
+int tools::compute_fileMD5(std::string file_name){
     std:: string md5_value;
     std::ifstream file(file_name.c_str(), std::ifstream::binary);
     if (!file){
-        std::cerr<<"open file failure";
+        std::cerr <<"open file failure";
         return -1;
     }
 
@@ -95,13 +95,39 @@ int tools::compute_MD5(std::string file_name){
         sprintf(hex + i * 2, "%02x", result[i]);
     }
     hex[32] = '\0';
-    md5_value = string(hex);
-    tools::md5s.insert({file_name,md5_value});
+    md5_value = std::string(hex);
+    tools::file_md5s.insert({file_name,md5_value});
     return 0;
 }
-//返回文件的MD5
-std::string tools::get_MD5(std::string file_name){
-    return tools::md5s[file_name];
+//返回生成的文件MD5
+std::string tools::get_fileMD5(std::string file_name){
+    if(!tools::file_md5s.count(file_name)){
+        compute_fileMD5(file_name);
+    }
+    return tools::file_md5s[file_name];
+}
+//判断MD5是否正确
+bool tools::verify_MD5(const std::string& file_name,const std::string& target){
+    return  tools::file_md5s[file_name] == target;
 }
 
+// 产生字符串的MD5
+std::string tools::get_stringMD5(std::string src){
+     MD5_CTX ctx;
+
+    std::string md5_string;
+    unsigned char md[16] = { 0 };
+    char tmp[33] = { 0 };
+
+    MD5_Init( &ctx );
+    MD5_Update( &ctx, src.c_str(), src.size() );
+    MD5_Final( md, &ctx );
+
+    for( int i = 0; i < 16; ++i ){   
+        memset( tmp, 0x00, sizeof( tmp ) );
+        sprintf( tmp, "%02X", md[i] );
+        md5_string += tmp;
+    }   
+    return md5_string;
+}
 

@@ -12,7 +12,7 @@ const char *error_403_form = "You do not have permission to get file form this s
 const char *error_404_title = "Not Found";
 const char *error_404_form = "The requested file was not found on this server.\n";
 const char *error_416_title = "Out of range";
-const char * error_146_form = "Requested Range Not Satisfiable";
+const char * error_416_form = "Requested Range Not Satisfiable";
 const char *error_500_title = "Internal Error";
 const char *error_500_form = "There was an unusual problem serving the request file.\n";
 
@@ -29,9 +29,9 @@ char* http::workdir = NULL;
 int http::epollfd = 0;
 locker http::http::m_lock = locker();
 std::unordered_map<std::string,std::string> http::users = std::unordered_map<std::string,std::string>();
+std::unordered_map<std::string,std::string> http::tokens = std::unordered_map<std::string,std::string>();
 int http::actor_model = proactor;
 int http::epoll_trigger_model = ET;
-
 
 
 
@@ -92,8 +92,7 @@ void http::init(){
     cur_http_method  = GET;
     line_state = LINE_OPEN;
 
-    range_beg = -1;
-    range_end = -1;
+   
     range_request = false;
     
     request_url = NULL;
@@ -311,6 +310,8 @@ REQUEST_STATE http::parse_header(char* line){
             }
             ranges.push_back({range_beg,range_end});
         }
+    }
+    else if (strncasecmp(line, "ETag:", 15) == 0){
 
     }
     return NO_REQUEST;
@@ -402,6 +403,11 @@ REQUEST_STATE http::do_request(){
             password += post_line[idx];
         }
         if( http::users.count(name) &&  http::users[name] == password){
+           /* std::string tmp{"#"};
+            tmp = tmp + name + " &&&" + password + "#";
+            std::string token =  tools::getInstance()->get_stringMD5(tmp);
+            http::tokens.
+            */
             strcpy(request_url,"/welcome.html");
         } else {
             strcpy(request_url,"/logError.html");
@@ -543,7 +549,9 @@ bool http::add_statusline(int status,const char* detail){
 }
 // 写首部字段
 bool http::add_header(int content_len){
-    return add_content_len(content_len) && add_keepalive() && add_blank_line();
+    return add_content_len(content_len) && add_keepalive() 
+            && add_accpet_rangerequest() && add_ETag() 
+            && add_blank_line();
 }
 //写空白行
 bool http::add_blank_line(){
@@ -562,18 +570,21 @@ bool http::add_content(const char* content){
      return add_line("%s", content);
 }
 // 支持范围请求
-bool http::add_accpet_range(){
-    return add_line("%s","Accept-Ranges : bytes");
+bool http::add_accpet_rangerequest(){
+    return add_line("%s\r\n","Accept-Ranges : bytes");
 }
 // 添加范围写内容
 bool http::add_content_range(int beg, int end, int size){
-    return add_line("%s%d-%d//%d","Content-Range: bytes ",beg,end,size);
+    return add_line("%s%d-%d//%d\r\n","Content-Range: bytes ",beg,end,size);
 }
 // 添加文件的Etag
-bool http::add_file_md5(){
-    tools tmp_tool;
-    std::string md5_value = tmp_tool.get_MD5(native_request_url);
-    return add_line("%s%s%s","ETag:\"",md5_value.c_str(),"\"");
+bool http::add_ETag(){
+    std::string tmp (native_request_url);
+    std::string md5_value = tools::getInstance()->get_fileMD5(tmp);
+    return add_line("%s%s\"\r\n","ETag:\"",md5_value.c_str());
+}
+bool http::add_token(){
+    
 }
 
 
@@ -612,10 +623,12 @@ bool http::process_write(REQUEST_STATE state){
         break;
     case FILE_REQUEST:
         // 没有范围请求
+        
         if(!range_request){
             add_statusline(200,ok_200_title);
             if(file_stat.st_size > 0){
                 add_header(file_stat.st_size);
+                
                 m_iv[0].iov_base = write_buf;
                 m_iv[0].iov_len = cur_wr_idx;
                 m_iv[1].iov_base = mmap_addr;
@@ -653,8 +666,53 @@ bool http::process_write(REQUEST_STATE state){
 // 处理范围请求
 // 暂时处理单个范围  可以解析出来 但是写 边界值没确定
 bool http::process_range(){
-    add_statusline(206,ok_206_title);
 
+    add_statusline(206,ok_206_title);
+    //暂时处理单个范围
+    auto range = ranges[0];
+    int beg = 0; int size = 0;
+    // -b
+    if(range[0] < 0){
+        size = range[1];
+        beg = bytes_to_send - size;
+    } //  a- 
+    else if (range[1] < 0){
+        size = bytes_to_send - range[0];
+        beg = range[0];
+    } // a-b 
+    else {
+        size = range[1] - range[0] + 1;
+        beg = range[0];
+    }
+    // 请求范围超出了
+    if(beg + size > file_stat.st_size){
+        add_statusline(416,error_416_title);
+        add_header(strlen(error_416_form));
+        int ret = add_content(error_416_form);
+        return false;
+    }
+    add_header(size);
+    add_content_range(beg,beg + size -1,file_stat.st_size);
+    if(file_stat.st_size > 0){
+        m_iv[0].iov_base = write_buf;
+        m_iv[0].iov_len = cur_wr_idx;
+        m_iv[1].iov_base = mmap_addr + beg;
+        m_iv[1].iov_len = size;
+        m_iv_cnt = 2;
+        bytes_to_send = cur_wr_idx + size;
+        return true;
+    }
+    // 空文件
+    else {
+        const char *ok_string = "<html><body></body></html>";
+        add_header(strlen(ok_string));
+        bool ret = add_content(ok_string);
+        if(!ret){
+            return false;
+        }
+    }
+    
+/*
     for(auto & range: ranges){
         int beg = 0; int size = 0;
         // -b
@@ -674,7 +732,7 @@ bool http::process_range(){
         if(beg + size > file_stat.st_size){
             add_statusline(416,error_416_title);
             add_header(strlen(error_416_form));
-            ret = add_content(error_416_form);
+            int ret = add_content(error_416_form);
             break;
         }
         add_header(size);
@@ -688,17 +746,7 @@ bool http::process_range(){
             bytes_to_send = cur_wr_idx + size;
             return true;
         } 
-        // 空文件
-        else {
-            const char *ok_string = "<html><body></body></html>";
-            add_header(strlen(ok_string));
-            bool ret = add_content(ok_string);
-            if(!ret){
-                return false;
-            }
-        }
-    }
-    
+*/ 
 }
 // 写函数
 bool http::write_to_socket(){

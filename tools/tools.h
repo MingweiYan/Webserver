@@ -14,11 +14,12 @@
 #include <fstream>
 #include <openssl/md5.h>
 #include<unordered_map>
+#include<iostream>
 
 class tools{
 
 private:
-    static std::unoredered_map<std::string,std::string> md5s;
+    static std::unordered_map<std::string,std::string> file_md5s;
     tools(){};
     
 public:
@@ -34,10 +35,12 @@ public:
     //  传递信号到主线程
     static int signal_pipefd[2];
     static int close_pipefd[2];
-    // 产生文件的MD5
-    int compute_MD5(std::string);
-    std::string get_MD5(std::string);
-
+    // 产生文件MD5
+    int compute_fileMD5(std::string);
+    std::string get_fileMD5(std::string);
+    bool verify_MD5(const std::string&,const std::string&);
+    // 产生字符串
+    std::string get_stringMD5(std::string);
 };
 
 
