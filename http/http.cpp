@@ -567,7 +567,13 @@ bool http::add_accpet_range(){
 }
 // 添加范围写内容
 bool http::add_content_range(int beg, int end, int size){
-    return addline("%s%d-%d//%d","Content-Range: bytes ",beg,end,size)
+    return add_line("%s%d-%d//%d","Content-Range: bytes ",beg,end,size);
+}
+// 添加文件的Etag
+bool http::add_file_md5(){
+    tools tmp_tool;
+    std::string md5_value = tmp_tool.get_MD5(native_request_url);
+    return add_line("%s%s%s","ETag:\"",md5_value.c_str(),"\"");
 }
 
 
@@ -645,6 +651,7 @@ bool http::process_write(REQUEST_STATE state){
     return true;
 }
 // 处理范围请求
+// 暂时处理单个范围  可以解析出来 但是写 边界值没确定
 bool http::process_range(){
     add_statusline(206,ok_206_title);
 

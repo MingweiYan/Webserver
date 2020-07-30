@@ -163,6 +163,7 @@ public:
     bool add_content(const char*);
     bool add_accpet_range();
     bool add_content_range(int,int,int);
+    bool add_file_md5();
 
     // 辅助函数
     void close_connection();

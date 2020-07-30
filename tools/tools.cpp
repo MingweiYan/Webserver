@@ -3,6 +3,7 @@
 
 int tools::signal_pipefd[2] = {0,0};
 int tools::close_pipefd[2] = {0,0};
+std::unordered_map<std::string,std::string> tools::md5s ={};
 
 // 单例模式
 tools* tools::getInstance(){
@@ -66,4 +67,41 @@ void tools::set_sigfunc(int sig,void(handler)(int), bool restrart){
     int ret = sigaction(sig,&sa,NULL);
     assert(ret!=-1);
 }
+// 产生文件的MD5
+int tools::compute_MD5(std::string file_name){
+    std:: string md5_value;
+    std::ifstream file(file_name.c_str(), std::ifstream::binary);
+    if (!file){
+        std::cerr<<"open file failure";
+        return -1;
+    }
+
+    MD5_CTX md5Context;
+    MD5_Init(&md5Context);
+
+    char buf[1024 * 16];
+    while (file.good() ) {
+        file.read(buf, sizeof(buf));
+        MD5_Update(&md5Context, buf, file.gcount());
+    }
+
+    unsigned char result[MD5_DIGEST_LENGTH];
+    MD5_Final(result, &md5Context);
+
+    char hex[35];
+    memset(hex, 0, sizeof(hex));
+    for (int i = 0; i < MD5_DIGEST_LENGTH; ++i)
+    {
+        sprintf(hex + i * 2, "%02x", result[i]);
+    }
+    hex[32] = '\0';
+    md5_value = string(hex);
+    tools::md5s.insert({file_name,md5_value});
+    return 0;
+}
+//返回文件的MD5
+std::string tools::get_MD5(std::string file_name){
+    return tools::md5s[file_name];
+}
+
 
