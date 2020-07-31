@@ -39,7 +39,7 @@ public:
     int compute_fileMD5(std::string);
     std::string get_fileMD5(std::string);
     bool verify_MD5(const std::string&,const std::string&);
-    // 产生字符串
+    // 产生字符串的MD5
     std::string get_stringMD5(std::string);
 };
 

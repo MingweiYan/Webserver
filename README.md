@@ -155,6 +155,10 @@
         * void epoll_remove(int epollfd,int fd);
         * void epoll_mod(int epoolfd,int fd,int event,bool one_shot,bool ET);
         * void set_sigfunc(int sig,void(handler)(int), bool restrart);
+        * int compute_fileMD5(std::string);
+        * std::string get_fileMD5(std::string);
+        * bool verify_MD5(const std::string&,const std::string&);
+        * std::string get_stringMD5(std::string);
 
 - info 文件夹
 
@@ -250,6 +254,8 @@
         * bool add_content_range(int);
         * bool write_to_socket();
             - 写一行内容到写缓存，  返回false 可能是 写缓存已满，或者不满但放不下要写的内容
+        * bool add_ETag();
+        * bool add_token();
         * void inform_close();
         * void close_connection();
         * bool isProactor();
