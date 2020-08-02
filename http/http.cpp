@@ -318,8 +318,11 @@ REQUEST_STATE http::parse_header(char* line){
     }
     else if (strncasecmp(line, "Cookie:", 7) == 0){
         line += 7;
-        line += strspn(line, " \t");
+        line = strpbrk(line, ";");
+        line += 2;
+        line += strspn(line, " ");
         std::string cookie = line ;
+        LOG_INFO(cookie.c_str());
         redisClient cli;
         cookieVerified = cli.verify_cookie(cookie,username);
     }
@@ -412,15 +415,7 @@ REQUEST_STATE http::do_request(){
             password += post_line[idx];
         }
         if( http::users.count(name) &&  http::users[name] == password){
-            redisClient cli;
-            bool cookieVerified = cli.verify_cookie(cookie,username);
-            if(!cookieVerified){
-                time_t cur = time(NULL);
-                string cookie = stoi(cur);
-                cookie += name;
-                cli.add_cookie(cookie,name);
-                cookieVerified = true;
-            }
+            cookieVerified = true;
             strcpy(request_url,"/welcome.html");
         } else {
             strcpy(request_url,"/logError.html");
@@ -462,17 +457,20 @@ REQUEST_STATE http::do_request(){
                 int res = mysql_query(mysqlconn,sql_insert.c_str());
                 http::users .insert({name,password});
                 http::m_lock.unlock();
+                // 插入成功
                 if(res==0){
-                    strcpy(request_url,"/log.html");
-                } 
-                else {
                     strcpy(request_url,"/welcome.html");
                     time_t cur = time(NULL);
-                    string cookie = stoi(cur);
-                    cookie += name;
+                    cookieId = std::to_string(cur);
+                    cookieId += name;
                     redisClient cli;
-                    cli.add_cookie(cookie,name);
-                    cookieVerified = true;
+                    cli.add_cookie(cookieId,name);
+                    cookieVerified = true; 
+                } 
+                // 插入失败 重新注册
+                else {
+                    strcpy(request_url,"/log.html");   
+                }
             } 
             else {
                 strcpy(request_url,"/registerError.html");
@@ -578,7 +576,7 @@ bool http::add_statusline(int status,const char* detail){
 // 写首部字段
 bool http::add_header(int content_len){
     return add_content_len(content_len) && add_keepalive() 
-            && add_accpet_rangerequest() && add_ETag() 
+            && add_accpet_rangerequest() && add_ETag() && add_cookie()
             && add_blank_line();
 }
 //写空白行
@@ -618,7 +616,7 @@ bool http::add_token(){
 //添加Cookie
 bool http::add_cookie(){
     if(cookieVerified)
-        return addline("Set-Cookie: %s",cookieId.c_str());
+        return add_line("Set-Cookie: %s\r\n",cookieId.c_str());
 }
 
 // 处理写

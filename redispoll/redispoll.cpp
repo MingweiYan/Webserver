@@ -73,7 +73,7 @@ void redisClient::add_cookie(std::string cookie,std::string user){
     }
 }
 // 判断cookie是否存在  存在将用户名保存到string
-bool redisClient::verify_cookie(std::string cookie, std::string user){
+bool redisClient::verify_cookie(std::string cookie, std::string& user){
     user.clear();
     std::string cmd = "HGET cookies ";
     cmd = cmd + cookie;

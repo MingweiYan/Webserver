@@ -86,6 +86,7 @@
   * sudo apt-get update
   * sudo apt-get install mysql-server
 
+
 - 配置用户名和密码
   * sudo mysql
   * use mysql
@@ -102,7 +103,10 @@
  
  - 修改main.cpp里面的数据库账号密码和数据库名
  
-
+- 配置redis
+  * sudo apt-get install redis-server 
+  * sudo apt-get install libhiredis-dev
+  * reids-server
 
 # 依赖关系
 

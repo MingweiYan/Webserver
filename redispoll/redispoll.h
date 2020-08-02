@@ -20,7 +20,7 @@ public:
     static redisPoll* getInstance();
     void init(int);
     redisContext* get_connection();
-    void release_connection(); 
+    void release_connection(redisContext *); 
     void destory();
 };
 

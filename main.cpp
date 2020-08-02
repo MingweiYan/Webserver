@@ -19,6 +19,8 @@ int main(int argc,char** argv){
     server.init_log();
 
     server.init_mysqlpoll();
+
+    server.init_redispoll();
     
     server.init_threadpoll();
 

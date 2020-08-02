@@ -210,6 +210,11 @@ void webserver::init_mysqlpoll(){
     mysqlpoll::getInstance()->init("localhost",dbusername,dbpassword,dbport,dbname,sql_conn_size);
     LOG_INFO("%s","initialize mysqlpoll function");  
 }
+// 初始化redis
+void webserver::init_redispoll(){
+    redisPoll::getInstance()->init(sql_conn_size);
+    LOG_INFO("%s","initialize redispoll function"); 
+}
 // 初始化listen
 void webserver::init_listen(){
 

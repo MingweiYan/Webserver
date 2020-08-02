@@ -70,6 +70,7 @@ public:
     void init_log();
     void init_threadpoll();
     void init_mysqlpoll();
+    void init_redispoll();
     void init_timer();
     void init_listen();
     void printSetting();
