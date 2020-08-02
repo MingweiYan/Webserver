@@ -106,22 +106,24 @@
 
 # 依赖关系
 
-              webserver
-              /       \
-         list_timer    \
-             \          \
-            http         \
-            /   \         \
-           /   mysqlpoll threadpoll  
-          /        \     /
-         /           info
-        /             /
-       /         blockqueue
-      /             /
-    tool          lock
+                     webserver
+                     /        \      
+               list_timer      \     
+                    \           \
+               h     t       t      p   
+              /      |        \      \
+             /       |         \      \
+            /     mysqlpoll redispoll threadpoll  
+           /            \       |       /
+          /              \      |      /
+         /                   info
+        /                     /
+       /                 blockqueue
+      /                     /
+    tool                  lock
 
     
-    编译顺序 g++ 中  A依赖B  A应该在B左边 webserver list_timer http mysqlpoll threadpoll info blockqueue tool lock 
+    编译顺序 g++ 中  A依赖B  A应该在B左边 webserver list_timer http mysqlpoll redispoll threadpoll info blockqueue tool lock 
 
 
 

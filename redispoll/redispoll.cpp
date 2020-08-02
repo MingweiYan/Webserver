@@ -1,5 +1,10 @@
 #include"redispoll.h"
 
+
+/*
+    redis 线程池
+*/
+
 // 单例模式
 redisPoll* redisPoll::getInstance(){
     static redisPoll instance;
@@ -44,3 +49,48 @@ void redisPoll::destory(){
     }
     redis_list.clear();
 }
+
+
+
+
+/*
+    redisclient类
+*/
+
+// 添加cookie到set中
+void redisClient::add_cookie(std::string cookie,std::string user){
+    std::string cmd = "HSET cookies ";
+    cmd = cmd + cookie + " " + user ;
+    redisConnection conn;
+    auto reply = (redisReply*)redisCommand(conn.get(),cmd.c_str());
+    if(reply == NULL){
+        LOG_ERROR("%s","set cookie to redis failure")
+        return ;
+    }
+    if(reply->type != REDIS_REPLY_INTEGER){
+        LOG_WARN("%s","set cookie command error")
+        return ;
+    }
+}
+// 判断cookie是否存在  存在将用户名保存到string
+bool redisClient::verify_cookie(std::string cookie, std::string user){
+    user.clear();
+    std::string cmd = "HGET cookies ";
+    cmd = cmd + cookie;
+    redisConnection conn;
+    auto reply = (redisReply*)redisCommand(conn.get(),cmd.c_str());
+    if(reply == NULL){
+        LOG_ERROR("%s","get cookie to redis failure")
+        return false;
+    }
+    if(reply->type == REDIS_REPLY_NIL){
+        return false;
+    } 
+    else if(reply->type == REDIS_REPLY_STRING){
+        user = reply->str;
+        return true;
+    } else {
+        LOG_WARN("%s","wrony redis reply type")
+        return false;
+    }
+} 

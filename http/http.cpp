@@ -92,7 +92,9 @@ void http::init(){
     cur_http_method  = GET;
     line_state = LINE_OPEN;
 
-   
+    cookieVerified = false;
+    cookieId.clear();
+  
     range_request = false;
     
     request_url = NULL;
@@ -312,7 +314,14 @@ REQUEST_STATE http::parse_header(char* line){
         }
     }
     else if (strncasecmp(line, "ETag:", 15) == 0){
-
+        // did nothing
+    }
+    else if (strncasecmp(line, "Cookie:", 7) == 0){
+        line += 7;
+        line += strspn(line, " \t");
+        std::string cookie = line ;
+        redisClient cli;
+        cookieVerified = cli.verify_cookie(cookie,username);
     }
     return NO_REQUEST;
 }
@@ -403,11 +412,15 @@ REQUEST_STATE http::do_request(){
             password += post_line[idx];
         }
         if( http::users.count(name) &&  http::users[name] == password){
-           /* std::string tmp{"#"};
-            tmp = tmp + name + " &&&" + password + "#";
-            std::string token =  tools::getInstance()->get_stringMD5(tmp);
-            http::tokens.
-            */
+            redisClient cli;
+            bool cookieVerified = cli.verify_cookie(cookie,username);
+            if(!cookieVerified){
+                time_t cur = time(NULL);
+                string cookie = stoi(cur);
+                cookie += name;
+                cli.add_cookie(cookie,name);
+                cookieVerified = true;
+            }
             strcpy(request_url,"/welcome.html");
         } else {
             strcpy(request_url,"/logError.html");
@@ -449,13 +462,19 @@ REQUEST_STATE http::do_request(){
                 int res = mysql_query(mysqlconn,sql_insert.c_str());
                 http::users .insert({name,password});
                 http::m_lock.unlock();
-            if(res==0){
+                if(res==0){
                     strcpy(request_url,"/log.html");
-                } else {
+                } 
+                else {
                     strcpy(request_url,"/welcome.html");
-                }
-                
-            } else {
+                    time_t cur = time(NULL);
+                    string cookie = stoi(cur);
+                    cookie += name;
+                    redisClient cli;
+                    cli.add_cookie(cookie,name);
+                    cookieVerified = true;
+            } 
+            else {
                 strcpy(request_url,"/registerError.html");
             }
             strncpy(native_request_url + len, request_url, strlen(request_url)); 
@@ -465,6 +484,9 @@ REQUEST_STATE http::do_request(){
     }
     // 请求图片
     else if(*(p+1) == '4'){
+        if(!cookieVerified){
+            return FORBIDDEN_REUQEST; 
+        }
         char* tail_url = (char*) malloc(sizeof(char)*200);
         strcpy(tail_url, "/picture.html");
         strncpy(native_request_url+len,tail_url,strlen(tail_url));
@@ -473,6 +495,9 @@ REQUEST_STATE http::do_request(){
     }
     // 请求视频
     else if(*(p+1) == '5'){
+        if(!cookieVerified){
+            return FORBIDDEN_REUQEST; 
+        }
         char* tail_url = (char*) malloc(sizeof(char)*200);
         strcpy(tail_url, "/video.html");
         strncpy(native_request_url+len,tail_url,strlen(tail_url));
@@ -481,6 +506,9 @@ REQUEST_STATE http::do_request(){
     }
     // 请求歌曲
     else if(*(p+1) == '6'){
+        if(!cookieVerified){
+            return FORBIDDEN_REUQEST; 
+        }
         char* tail_url = (char*) malloc(sizeof(char)*200);
         strcpy(tail_url, "/music.html");
         strncpy(native_request_url+len,tail_url,strlen(tail_url));
@@ -583,10 +611,15 @@ bool http::add_ETag(){
     std::string md5_value = tools::getInstance()->get_fileMD5(tmp);
     return add_line("%s%s\"\r\n","ETag:\"",md5_value.c_str());
 }
+// 添加token
 bool http::add_token(){
-    
+    // did nothing
 }
-
+//添加Cookie
+bool http::add_cookie(){
+    if(cookieVerified)
+        return addline("Set-Cookie: %s",cookieId.c_str());
+}
 
 // 处理写
 bool http::process_write(REQUEST_STATE state){
@@ -623,7 +656,6 @@ bool http::process_write(REQUEST_STATE state){
         break;
     case FILE_REQUEST:
         // 没有范围请求
-        
         if(!range_request){
             add_statusline(200,ok_200_title);
             if(file_stat.st_size > 0){

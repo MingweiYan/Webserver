@@ -18,6 +18,7 @@
 #include"../info/info.h"
 #include"../mysqlpoll/mysqlpoll.h"
 #include"../tools/tools.h"
+#include"../redispoll/redispoll.h"
 
 
 /*
@@ -109,6 +110,9 @@ private:
 
     //http连接相关
     int sockfd; 
+    bool cookieVerified;
+    std::string cookieId;
+    std::string username;
     // 请求报文url
     char* request_url;
     bool KeepAlive;
@@ -166,6 +170,7 @@ public:
     bool add_content_range(int,int,int);
     bool add_ETag();
     bool add_token();
+    bool add_cookie();
 
     // 辅助函数
     void close_connection();

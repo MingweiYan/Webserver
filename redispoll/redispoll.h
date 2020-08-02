@@ -3,11 +3,13 @@
 
 
 #include<bits/stdc++.h>
-//#include <hiredis/hiredis.h>
-
+#include <hiredis/hiredis.h>
 #include"../lock/lock.h"
 #include"../info/info.h"
 
+/*
+    redis连接池
+*/
 class redisPoll{
 private:
     redisPoll() = default;
@@ -23,6 +25,10 @@ public:
 };
 
 
+/*
+    redis连接类
+*/
+
 class redisConnection{
 
 private:
@@ -36,6 +42,17 @@ public:
     redisContext * get(){ return conn;}
 };
 
+
+/*
+    redis客户端类
+*/
+
+class redisClient{
+
+public:
+    void add_cookie(std::string,std::string);
+    bool verify_cookie(std::string,std::string&);
+};
 
 
 #endif
