@@ -59,9 +59,10 @@ void redisPoll::destory(){
 
 // 添加cookie到set中
 void redisClient::add_cookie(std::string cookie,std::string user){
-    std::string cmd = "HSET cookies ";
-    cmd = cmd + cookie + " " + user ;
+    std::string cmd = "HSET cookiesTable ";
+    cmd = cmd + user + " " + cookie ;
     redisConnection conn;
+    // 添加到哈希表  user -> cookie
     auto reply = (redisReply*)redisCommand(conn.get(),cmd.c_str());
     if(reply == NULL){
         LOG_ERROR("%s","set cookie to redis failure")
@@ -71,11 +72,43 @@ void redisClient::add_cookie(std::string cookie,std::string user){
         LOG_WARN("%s","set cookie command error")
         return ;
     }
+    // 添加到set
+    std::string cmd2 = "SADD cookies ";
+    cmd2 += cookie;
+    auto reply = (redisReply*)redisCommand(conn.get(),cmd2.c_str());
+    if(reply == NULL){
+        LOG_ERROR("%s","set cookie to redis failure")
+        return ;
+    }
+    if(reply->type != REDIS_REPLY_INTEGER){
+        LOG_WARN("%s","set cookie command error")
+        return ;
+    }
+}
+// 返回用户的cookie
+bool redisClient::get_cookie(std::string user,std::string& cookie){
+    std::string cmd = "HGET cookiesTable ";
+    cmd = cmd + user;
+    redisConnection conn;
+    auto reply = (redisReply*)redisCommand(conn.get(),cmd.c_str());
+    if(reply == NULL){
+        LOG_ERROR("%s","get cookie from redis failure")
+        return false;
+    }
+    if(reply->type == REDIS_REPLY_NIL){
+        return false;
+    } 
+    else if(reply->type == REDIS_REPLY_STRING){
+        cookie = reply->str;
+        return true;
+    } else {
+        LOG_WARN("%s","wrong redis reply type")
+        return false;
+    }
 }
 // 判断cookie是否存在  存在将用户名保存到string
-bool redisClient::verify_cookie(std::string cookie, std::string& user){
-    user.clear();
-    std::string cmd = "HGET cookies ";
+bool redisClient:: verify_cookie(std::string cookie){
+    std::string cmd = "SISMEMBER cookies ";
     cmd = cmd + cookie;
     redisConnection conn;
     auto reply = (redisReply*)redisCommand(conn.get(),cmd.c_str());
@@ -83,14 +116,11 @@ bool redisClient::verify_cookie(std::string cookie, std::string& user){
         LOG_ERROR("%s","get cookie to redis failure")
         return false;
     }
-    if(reply->type == REDIS_REPLY_NIL){
+    if(reply->type != REDIS_REPLY_INTEGER){
         return false;
     } 
-    else if(reply->type == REDIS_REPLY_STRING){
-        user = reply->str;
-        return true;
-    } else {
-        LOG_WARN("%s","wrony redis reply type")
+    if(reply->integer !=1)
         return false;
     }
+    return true;
 } 

@@ -51,7 +51,8 @@ class redisClient{
 
 public:
     void add_cookie(std::string,std::string);
-    bool verify_cookie(std::string,std::string&);
+    bool get_cookie(std::string,std::string&);
+    bool verify_cookie(std::string);
 };
 
 
