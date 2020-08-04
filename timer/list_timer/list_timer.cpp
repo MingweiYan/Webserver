@@ -7,8 +7,8 @@
 */
 
 // 构造函数
-list_timer::list_timer(){timer();}
-list_timer::list_timer(int slot) :timer(slot){}
+list_timer::list_timer(){timer(); last_time = 0;}
+list_timer::list_timer(int slot) :timer(slot),last_time(0){}
 list_timer::~list_timer(){}
 
 
@@ -55,4 +55,13 @@ void list_timer::tick(){
             execute(cur);
         }
     }
+}
+// 超时处理
+void list_timer::dealwith_alarm(){
+    tick();
+    time_t now = time(NULL);
+    int interval = timer_list.front()->expire_time - now;
+    if(interval <= 0) interval = slot;
+    interval = max(interval,slot);
+    alarm(interval);
 }

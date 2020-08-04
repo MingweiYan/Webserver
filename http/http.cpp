@@ -322,9 +322,9 @@ REQUEST_STATE http::parse_header(char* line){
         line += 2;
         line += strspn(line, " ");
         std::string cookie = line ;
-        LOG_INFO(cookie.c_str());
+       // LOG_INFO(cookie.c_str());
         redisClient cli;
-        cookieVerified = cli.verify_cookie(cookie,username);
+        cookieVerified = cli.verify_cookie(cookie);
     }
     return NO_REQUEST;
 }
@@ -416,7 +416,8 @@ REQUEST_STATE http::do_request(){
         }
         if( http::users.count(name) &&  http::users[name] == password){
             cookieVerified = true;
-            cookieId = 
+            redisClient cli;
+            cli.get_cookie(namem,cookieId);
             strcpy(request_url,"/welcome.html");
         } else {
             strcpy(request_url,"/logError.html");

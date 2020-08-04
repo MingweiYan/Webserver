@@ -15,6 +15,7 @@ class list_timer : public timer{
 private:
     std::list<timer_node*> timer_list;
     std::unordered_map<int,decltype(timer_list.begin())> toIter;
+    time_t last_time;
 
 public:
     list_timer();
@@ -25,6 +26,7 @@ public:
     void remove(timer_node* timer);
     void adjust(timer_node* timer);
     void tick();
+    void dealwith_alarm();
 };
 
 

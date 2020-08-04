@@ -44,9 +44,9 @@ public:
     virtual void remove(timer_node *) {};
     virtual void adjust(timer_node*){};
     virtual void tick() {};
-    void dealwith_alarm(){
+    virtual void dealwith_alarm(){
          tick(); 
-         alarm(timer_slot);
+         alarm(slot);
     }
     virtual int slot(){
         return timer_slot;
