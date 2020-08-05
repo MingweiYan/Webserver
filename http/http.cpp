@@ -417,7 +417,7 @@ REQUEST_STATE http::do_request(){
         if( http::users.count(name) &&  http::users[name] == password){
             cookieVerified = true;
             redisClient cli;
-            cli.get_cookie(namem,cookieId);
+            cli.get_cookie(name,cookieId);
             strcpy(request_url,"/welcome.html");
         } else {
             strcpy(request_url,"/logError.html");

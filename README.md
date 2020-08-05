@@ -105,6 +105,7 @@
  
 - 配置redis
   * sudo apt-get install redis-server 
+  *  cd /etc/redis && sudo vim redis.config  修改appendonly  yes  
   * sudo apt-get install libhiredis-dev
   * reids-server
 

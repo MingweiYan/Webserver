@@ -119,7 +119,7 @@ bool redisClient:: verify_cookie(std::string cookie){
     if(reply->type != REDIS_REPLY_INTEGER){
         return false;
     } 
-    if(reply->integer !=1)
+    if(reply->integer !=1){
         return false;
     }
     return true;

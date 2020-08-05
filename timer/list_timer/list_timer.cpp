@@ -56,12 +56,11 @@ void list_timer::tick(){
         }
     }
 }
-// 超时处理
-void list_timer::dealwith_alarm(){
-    tick();
+// 返回定时时间
+int list_timer::slot(){
     time_t now = time(NULL);
     int interval = timer_list.front()->expire_time - now;
-    if(interval <= 0) interval = slot;
-    interval = max(interval,slot);
-    alarm(interval);
+    if(interval <= 0) interval = timer_slot;
+    interval = interval > timer_slot ? interval: timer_slot;
+    return interval;
 }
