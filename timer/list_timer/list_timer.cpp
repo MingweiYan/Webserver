@@ -57,10 +57,10 @@ void list_timer::tick(){
     }
 }
 // 返回定时时间
-int list_timer::slot(){
+int list_timer::compute_slot(){
     time_t now = time(NULL);
     int interval = timer_list.front()->expire_time - now;
-    if(interval <= 0) interval = timer_slot;
-    interval = interval > timer_slot ? interval: timer_slot;
+    if(interval <= 0) interval = slot();
+    interval = interval > slot() ? interval: slot();
     return interval;
 }

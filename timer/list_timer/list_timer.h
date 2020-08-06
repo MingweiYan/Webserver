@@ -26,7 +26,7 @@ public:
     void remove(timer_node* timer);
     void adjust(timer_node* timer);
     void tick();
-    void dealwith_alarm();
+    int compute_slot();
 };
 
 

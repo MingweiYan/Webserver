@@ -38,8 +38,9 @@ redisContext* redisPoll::get_connection(){
 void redisPoll::release_connection(redisContext* conn){
     m_lock.lock();
     redis_list.push_back(conn);
-    m_lock.unlock();
     m_sem.post();
+    m_lock.unlock();
+    
 }
 
 // 释放所有连接的资源
@@ -58,7 +59,7 @@ void redisPoll::destory(){
 */
 
 // 添加cookie到set中
-void redisClient::add_cookie(std::string cookie,std::string user){
+void redisClient::add_cookie(std::string user,std::string cookie){
     std::string cmd = "HSET cookiesTable ";
     cmd = cmd + user + " " + cookie ;
     redisConnection conn;
@@ -72,10 +73,12 @@ void redisClient::add_cookie(std::string cookie,std::string user){
         LOG_WARN("%s","set cookie command error")
         return ;
     }
+    freeReplyObject(reply);
+
     // 添加到set
     std::string cmd2 = "SADD cookies ";
     cmd2 += cookie;
-    auto reply = (redisReply*)redisCommand(conn.get(),cmd2.c_str());
+    reply = (redisReply*)redisCommand(conn.get(),cmd2.c_str());
     if(reply == NULL){
         LOG_ERROR("%s","set cookie to redis failure")
         return ;

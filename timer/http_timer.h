@@ -36,20 +36,25 @@ public:
         timer_slot = 5;
     };
     timer(int slot):timer_slot(slot){};
+
     virtual ~timer(){};
-    void set_slot(int i) {
-        timer_slot = i;
-    }
     virtual void add(timer_node*) {};
     virtual void remove(timer_node *) {};
     virtual void adjust(timer_node*){};
     virtual void tick() {};
+    virtual int compute_slot(){
+        return slot();
+    }
+    
+    int slot(){
+        return timer_slot;
+    }
+    void set_slot(int i) {
+        timer_slot = i;
+    }
     void dealwith_alarm(){
          tick(); 
          alarm(slot());
-    }
-    virtual int slot(){
-        return timer_slot;
     }
     // 设置超时处理函数
     void setfunc(std::function<void(timer_node*)> f){

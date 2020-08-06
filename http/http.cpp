@@ -29,7 +29,7 @@ char* http::workdir = NULL;
 int http::epollfd = 0;
 locker http::http::m_lock = locker();
 std::unordered_map<std::string,std::string> http::users = std::unordered_map<std::string,std::string>();
-std::unordered_map<std::string,std::string> http::tokens = std::unordered_map<std::string,std::string>();
+//std::unordered_map<std::string,std::string> http::tokens = std::unordered_map<std::string,std::string>();
 int http::actor_model = proactor;
 int http::epoll_trigger_model = ET;
 
@@ -121,6 +121,7 @@ void http::close_connection(){
 void http::process(){
     // 处理请求报文 得到请求
     REQUEST_STATE state = process_read();
+   // LOG_INFO("process read")
     // 没得到有效的请求  继续读
     if(state == NO_REQUEST){
         LOG_ERROR("%s%d","parse request not get valid request registrer epollin and onshot the sockfd is ",sockfd)
@@ -133,6 +134,7 @@ void http::process(){
         LOG_ERROR("%s%d","write to buf failed the sockfd is ",sockfd)
         close_connection();
     }
+   // LOG_INFO("process write")
     // 完成写后注册写事件
   //  LOG_INFO("%s%d","finish process read and write register EPOLLOUT the sockfd is ",sockfd)
     tools::getInstance()->epoll_mod(http::epollfd,sockfd,EPOLLOUT,true,epoll_trigger_model == ET );
@@ -256,6 +258,7 @@ REQUEST_STATE  http::parse_requestline(char* line){
 }
 // 解析一行头部信息
 REQUEST_STATE http::parse_header(char* line){
+   // LOG_INFO(line);
     if(line[0] == '\0'){
         if(content_len != 0){
             master_state = CHECK_CONTENT;
@@ -317,14 +320,26 @@ REQUEST_STATE http::parse_header(char* line){
         // did nothing
     }
     else if (strncasecmp(line, "Cookie:", 7) == 0){
+       // LOG_INFO("begin to parse cookie")
         line += 7;
-        line = strpbrk(line, ";");
-        line += 2;
+        char* tmp = strpbrk(line, ";");
+        if(tmp){
+            line = tmp;
+            line += 1;
+        }
+       // LOG_INFO("state1")
         line += strspn(line, " ");
+      //  LOG_INFO("state2")
         std::string cookie = line ;
+
        // LOG_INFO(cookie.c_str());
         redisClient cli;
+       // LOG_INFO("verfiy cookie")
         cookieVerified = cli.verify_cookie(cookie);
+        if(cookieVerified){
+            cookieId = cookie;
+        } 
+      //  LOG_INFO("finish verfiy cookie")
     }
     return NO_REQUEST;
 }
@@ -349,12 +364,14 @@ REQUEST_STATE http::process_read(){
         {
         case CHECK_REQUESTLINE:
             ret = parse_requestline(line);
+           // LOG_INFO("parse request line")
             if(ret == BAD_REQUEST){
                 return BAD_REQUEST;
             }
             break;
         case CHECK_HEADER:
             ret = parse_header(line);
+           // LOG_INFO("parse header")
             if(ret == BAD_REQUEST){
                 return BAD_REQUEST;
             } 
@@ -367,6 +384,7 @@ REQUEST_STATE http::process_read(){
             break;
         case CHECK_CONTENT:
             ret = parse_content(line);
+         //    LOG_INFO("parse content")
             if(ret == GET_REQUEST){
                 line_state = LINE_OPEN;
                 return do_request();
@@ -414,7 +432,7 @@ REQUEST_STATE http::do_request(){
         for(; post_line[idx]!='\0'; ++idx){
             password += post_line[idx];
         }
-        if( http::users.count(name) &&  http::users[name] == password){
+        if(!name.empty() &&  http::users.count(name) &&  http::users[name] == password){
             cookieVerified = true;
             redisClient cli;
             cli.get_cookie(name,cookieId);
@@ -460,13 +478,13 @@ REQUEST_STATE http::do_request(){
                 http::users .insert({name,password});
                 http::m_lock.unlock();
                 // 插入成功
-                if(res==0){
+                if(res == 0){
                     strcpy(request_url,"/welcome.html");
                     time_t cur = time(NULL);
                     cookieId = std::to_string(cur);
                     cookieId += name;
                     redisClient cli;
-                    cli.add_cookie(cookieId,name);
+                    cli.add_cookie(name,cookieId);
                     cookieVerified = true; 
                 } 
                 // 插入失败 重新注册

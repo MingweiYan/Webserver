@@ -132,7 +132,6 @@ private:
     static locker m_lock;
     static char* workdir;
     static std::unordered_map<std::string,std::string> users;
-    static std::unordered_map<std::string,std::string> tokens;
     static int epollfd;
     static int actor_model;
     static int epoll_trigger_model;
