@@ -282,6 +282,7 @@ void webserver::init_listen(){
     tools::getInstance()->set_sigfunc(SIGPIPE,SIG_IGN,true);
     tools::getInstance()->set_sigfunc(SIGALRM,sig_handler,false);
     tools::getInstance()->set_sigfunc(SIGTERM,sig_handler,false);
+    tools::getInstance()->set_sigfunc(SIGINT,sig_handler,false);
     
     LOG_INFO("%s","initialize pipe and signal")
 } 
@@ -439,6 +440,13 @@ bool webserver::dealwith_signal(){
                 time_out = true;
                 break;
             case SIGTERM:
+                stop_server = true;
+                LOG_INFO("close sever by the term signal")
+                info::getInstance()->close_log();
+                break;
+            case SIGINT:
+                LOG_INFO("close sever by the int signal")
+                info::getInstance()->close_log();
                 stop_server = true;
                 break;
             }

@@ -199,7 +199,14 @@ void info::flush(){
 bool info::isLogOpen(){
     return LogOpen;
 }
-
+// 完成关闭日志的工作
+void info::close_log(){
+    while(isAsyn && !lines_to_write->empty()){
+        ;
+        // donothing
+    }
+    flush();
+}
 
 
 

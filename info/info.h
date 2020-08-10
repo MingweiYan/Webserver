@@ -54,14 +54,15 @@ public:
     void write_line(int level, const char* format, ...);
     void directOutput(std::string);
     bool isLogOpen();
+    void close_log();
 };
 
 
 #define LOG_DEBUG(format, ...) if(info::getInstance()->isLogOpen()) { info::getInstance()->write_line(0,format,##__VA_ARGS__); info::getInstance()->flush();}
-#define LOG_INFO(format, ...) if(info::getInstance()->isLogOpen()) {info::getInstance()->write_line(1,format,##__VA_ARGS__); info::getInstance()->flush();}
-#define LOG_WARN(format, ...) if(info::getInstance()->isLogOpen()) { info::getInstance()->write_line(2,format,##__VA_ARGS__); info::getInstance()->flush();}
+#define LOG_INFO(format, ...) if(info::getInstance()->isLogOpen()) {info::getInstance()->write_line(1,format,##__VA_ARGS__); }
+#define LOG_WARN(format, ...) if(info::getInstance()->isLogOpen()) { info::getInstance()->write_line(2,format,##__VA_ARGS__);}
 #define LOG_ERROR(format, ...) if(info::getInstance()->isLogOpen()) { info::getInstance()->write_line(3,format,##__VA_ARGS__); info::getInstance()->flush();}
-#define LOG_STR(str) if(info::getInstance()->isLogOpen()) { info::getInstance()->directOutput(str); info::getInstance()->flush();}
+#define LOG_STR(str) if(info::getInstance()->isLogOpen()) { info::getInstance()->directOutput(str); }
 
 
 #endif
