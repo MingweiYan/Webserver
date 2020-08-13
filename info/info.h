@@ -47,6 +47,9 @@ private:
     info();
 public:
     static info* getInstance();
+
+    info( info&) = delete;
+    info & operator = (info &) = delete;
     
     ~info();
     bool init(bool LogOpen,std::string file_name,int max_line_perfile,int write_buf_size,int queue_size);

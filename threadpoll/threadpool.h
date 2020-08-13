@@ -28,6 +28,10 @@ private:
     std::unique_ptr<pthread_t[]> pthread_id;
     int thread_size;
 public:
+
+    threadpoll(threadpoll& ) = delete;
+    threadpoll& operator=(threadpoll&) = delete;
+
      // 构造函数
     threadpoll(std::function<void (T*)> func,int poll_size,int work_list_size){
         thread_size = poll_size;

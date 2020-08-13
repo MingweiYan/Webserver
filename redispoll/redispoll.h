@@ -17,6 +17,9 @@ private:
     locker  m_lock;
     sem m_sem;
 public:
+    redisPoll(redisPoll &) = delete;
+    redisPoll& operator = (redisPoll&) = delete;
+    
     static redisPoll* getInstance();
     void init(int);
     redisContext* get_connection();

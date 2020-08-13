@@ -23,6 +23,8 @@ private:
     tools(){};
     
 public:
+    tools(tools&) = delete;
+    tools& operator= (tools&) = delete;
     // 单例模式
     static tools * getInstance();
     // epoll相关

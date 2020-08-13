@@ -29,6 +29,9 @@ private:
     // 构造函数
     mysqlpoll(){};
 public:
+    mysqlpoll(mysqlpoll&) = delete;
+    mysqlpoll & operator = (mysqlpoll&) = delete;
+    
     ~mysqlpoll();
     static mysqlpoll* getInstance();
     MYSQL* get_connection();
