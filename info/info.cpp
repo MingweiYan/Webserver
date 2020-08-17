@@ -20,6 +20,7 @@ info::~info(){
 // 初始化
 bool info::init(bool LogOpen_,std::string file_name,int maxline_perfile,int buf_size,int queue_size){
     LogOpen = LogOpen_;
+    if(!LogOpen) return true;
     max_file_line = maxline_perfile;
     write_buf_size = buf_size;
     // 异步写
@@ -201,7 +202,7 @@ bool info::isLogOpen(){
 }
 // 完成关闭日志的工作
 void info::close_log(){
-    while(isAsyn && !lines_to_write->empty()){
+    while(LogOpen && isAsyn && !lines_to_write->empty()){
         ;
         // donothing
     }

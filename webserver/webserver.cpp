@@ -442,11 +442,11 @@ bool webserver::dealwith_signal(){
             case SIGTERM:
                 stop_server = true;
                 LOG_INFO("close sever by the term signal")
-                info::getInstance()->close_log();
+               // info::getInstance()->close_log();
                 break;
             case SIGINT:
                 LOG_INFO("close sever by the int signal")
-                info::getInstance()->close_log();
+               // info::getInstance()->close_log();
                 stop_server = true;
                 break;
             }

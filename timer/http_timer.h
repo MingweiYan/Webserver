@@ -54,7 +54,7 @@ public:
     }
     void dealwith_alarm(){
          tick(); 
-         alarm(slot());
+         alarm(compute_slot());
     }
     // 设置超时处理函数
     void setfunc(std::function<void(timer_node*)> f){
