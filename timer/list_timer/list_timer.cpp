@@ -58,6 +58,7 @@ void list_timer::tick(){
 }
 // 返回定时时间
 int list_timer::compute_slot(){
+    if(timer_list.empty() ) return slot();
     time_t now = time(NULL);
     int interval = timer_list.front()->expire_time - now;
     if(interval <= 0) interval = slot();

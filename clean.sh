@@ -10,3 +10,7 @@ done
 
 # clean log file 
 rm 2020*
+
+# clean core file
+
+rm core*
